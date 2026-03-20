@@ -105,14 +105,13 @@ int main(void)
 
 
 
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, 0); //enable PD13, direction pin HIGH
+  //HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, 0); //enable PD13, direction pin HIGH
 
-  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+  //HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
 
   while (1)
   {
@@ -127,7 +126,16 @@ int main(void)
 	  }
 
 	  HAL_Delay(10);*/
-	  HAL_Delay(1000);
+	 // HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13));
+
+	  if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET) {
+		  //HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
+		  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+	  } else {
+		  HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_1);
+	  }
+
+	  //HAL_Delay(1000);
 	  //HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_13); //enable PD13, direction pin HIGH
 
 
@@ -250,6 +258,9 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LD3_Pin|LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
@@ -257,6 +268,13 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(USB_PowerSwitchOn_GPIO_Port, USB_PowerSwitchOn_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : PC13 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LD3_Pin LD2_Pin */
   GPIO_InitStruct.Pin = LD3_Pin|LD2_Pin;

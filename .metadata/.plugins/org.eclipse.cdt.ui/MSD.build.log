@@ -1,0 +1,10 @@
+20:12:49 **** Incremental Build of configuration Debug for project MSD ****
+make -j12 all 
+arm-none-eabi-size  MSD.elf 
+   text	   data	    bss	    dec	    hex	filename
+  12632	     12	   1644	  14288	   37d0	MSD.elf
+Finished building: default.size.stdout
+ 
+
+20:12:50 Build Finished. 0 errors, 0 warnings. (took 1s.303ms)
+

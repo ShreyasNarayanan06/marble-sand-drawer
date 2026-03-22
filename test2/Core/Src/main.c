@@ -109,9 +109,9 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  //HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, 0); //enable PD13, direction pin HIGH
-
-  //HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+//  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, 0); //enable PD13, direction pin HIGH
+//
+ HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
 
   while (1)
   {
@@ -128,11 +128,10 @@ int main(void)
 	  HAL_Delay(10);*/
 	 // HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13));
 
-	  if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET) {
-		  //HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
-		  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+	  if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == 1) {
+		  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, 0);
 	  } else {
-		  HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_1);
+		  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, 1);
 	  }
 
 	  //HAL_Delay(1000);

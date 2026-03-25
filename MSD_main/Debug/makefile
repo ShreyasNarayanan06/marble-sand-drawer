@@ -60,8 +60,8 @@ all: main-build
 main-build: MSD_main.elf secondary-outputs
 
 # Tool invocations
-MSD_main.elf MSD_main.map: $(OBJS) $(USER_OBJS) C:\Users\sidha\Documents\eecs373project\marble-sand-drawer\MSD_main\STM32L4R5ZITXP_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "MSD_main.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\sidha\Documents\eecs373project\marble-sand-drawer\MSD_main\STM32L4R5ZITXP_FLASH.ld" --specs=nosys.specs -Wl,-Map="MSD_main.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+MSD_main.elf MSD_main.map: $(OBJS) $(USER_OBJS) C:\Users\nshreyas\Desktop\marble-sand-drawer\MSD_main\STM32L4R5ZITXP_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "MSD_main.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\nshreyas\Desktop\marble-sand-drawer\MSD_main\STM32L4R5ZITXP_FLASH.ld" --specs=nosys.specs -Wl,-Map="MSD_main.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

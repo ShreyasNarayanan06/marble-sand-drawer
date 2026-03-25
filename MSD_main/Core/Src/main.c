@@ -23,7 +23,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "gmove.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -33,7 +33,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define percentDist(p) ((p) * 5.03238)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -45,14 +45,9 @@
 
 /* USER CODE BEGIN PV */
 
-volatile uint8_t x_homing = 0;
-volatile uint8_t y_homing = 0;
 
-volatile uint8_t x_is_homed = 0;
-volatile uint8_t y_is_homed = 0;
 
-volatile int32_t current_x_steps = 0;
-volatile int32_t current_y_steps = 0;
+
 
 
 /* USER CODE END PV */
@@ -100,6 +95,7 @@ int main(void)
   MX_GPIO_Init();
   MX_TIM2_Init();
   MX_TIM4_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   /*
   //enable the drivers
@@ -113,10 +109,11 @@ int main(void)
   //test PWM signal driving
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+
+
 	*/
-
-
   Gantry_Home();
+  mMove(0, percentDist(50));
 
   /* USER CODE END 2 */
 
@@ -177,95 +174,10 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-    // X-Axis Limit Switch Hit
-    if (GPIO_Pin == GPIO_PIN_10) {
-    	if (x_homing == 1) {
-    		HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_1); // Kill X motor
-    		x_is_homed = 1; // Tell the system X is done
-    	}
-    }
-
-    // Y-Axis Limit Switch Hit
-    if (GPIO_Pin == GPIO_PIN_14) {
-    	if (y_homing == 1) {
-    		HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1); // Kill Y motor
-    		y_is_homed = 1;// Tell the system Y is done
-    	}
-    }
-}
-
-
-void Gantry_Home(void) {
-
-	x_homing = 1;
-	y_homing = 1;
-
-    //Enable the motor drivers (Active Low)
-    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_RESET); // X EN
-    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_SET);  // Y EN
-
-    //Set direction towards the limit switches
-    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);   // X DIR
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);    // Y DIR
-
-    // slow speed
-    __HAL_TIM_SET_AUTORELOAD(&htim4, 3000);
-    __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, 1500);
-
-    __HAL_TIM_SET_AUTORELOAD(&htim2, 3000);
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 1500);
-
-    //Reset flags in case they got triggered by noise on boot
-    x_is_homed = 0;
-    y_is_homed = 0;
-
-    // Start both motors!
-    HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
-
-
-    //Trap CPU until EXTI fires
-    while (x_is_homed == 0) {//add y later
-        // Wait for the crash...
-    }
-
-    x_homing = 0; //this is done to prevent more interruptions (debouncing method)
-
-    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_RESET);  // Y EN
-
-    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-
-   while(y_is_homed == 0) {}
-
-    y_homing = 0;
-
-    HAL_Delay(500);
-
-    //Reverse direction (Away from switch)
-    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
-
-
-    //Turn motor back on
-    HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
-    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-
-    // Drive more for clearance
-    HAL_Delay(200);
-
-    //Stop motor- homing is finished
-    HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_1);
-    HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
-
-    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_SET);
 
 
 
-    //recalibrate
-    current_x_steps = 0;
-    current_y_steps = 0;
-}
+
 /* USER CODE END 4 */
 
 /**

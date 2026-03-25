@@ -53,13 +53,6 @@
      PC5   ------> ADCx_IN14
      PB1   ------> ADCx_IN16
      PB2   ------> COMP1_INP
-     PE7   ------> S_TIM1_ETR
-     PE8   ------> TIM1_CH1N
-     PE9   ------> S_TIM1_CH1
-     PE11   ------> S_TIM1_CH2
-     PE12   ------> TIM1_CH3N
-     PE13   ------> S_TIM1_CH3
-     PE15   ------> TIM1_BKIN
      PB12   ------> SAI2_FS_A
      PB13   ------> SAI2_SCK_A
      PB14   ------> S_TIM15_CH1
@@ -181,28 +174,10 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PE7 PE8 PE9 PE11
-                           PE12 PE13 */
-  GPIO_InitStruct.Pin = GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_11
-                          |GPIO_PIN_12|GPIO_PIN_13;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF1_TIM1;
-  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
-
   /*Configure GPIO pins : X_axis_Limit_Pin Y_axis_Limit_Pin */
   GPIO_InitStruct.Pin = X_axis_Limit_Pin|Y_axis_Limit_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PE15 */
-  GPIO_InitStruct.Pin = GPIO_PIN_15;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF3_TIM1_COMP1;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PB12 PB13 PB15 */

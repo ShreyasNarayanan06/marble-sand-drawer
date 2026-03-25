@@ -61,8 +61,10 @@ void Error_Handler(void);
 #define Y_axis_Direction_GPIO_Port GPIOB
 #define X_axis_Limit_Pin GPIO_PIN_10
 #define X_axis_Limit_GPIO_Port GPIOE
+#define X_axis_Limit_EXTI_IRQn EXTI15_10_IRQn
 #define Y_axis_Limit_Pin GPIO_PIN_14
 #define Y_axis_Limit_GPIO_Port GPIOE
+#define Y_axis_Limit_EXTI_IRQn EXTI15_10_IRQn
 #define X_axis_Enable_Pin GPIO_PIN_11
 #define X_axis_Enable_GPIO_Port GPIOD
 #define X_axis_Direction_Pin GPIO_PIN_13

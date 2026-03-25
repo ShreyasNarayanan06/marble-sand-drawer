@@ -115,7 +115,9 @@ int main(void)
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 	*/
 
+
   Gantry_Home();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -201,11 +203,11 @@ void Gantry_Home(void) {
 
     //Enable the motor drivers (Active Low)
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_RESET); // X EN
-    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_RESET);  // Y EN
+    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_SET);  // Y EN
 
     //Set direction towards the limit switches
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);   // X DIR
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);    // Y DIR
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);    // Y DIR
 
     // slow speed
     __HAL_TIM_SET_AUTORELOAD(&htim4, 3000);
@@ -220,19 +222,28 @@ void Gantry_Home(void) {
 
     // Start both motors!
     HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
-    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+
 
     //Trap CPU until EXTI fires
-    while (y_is_homed == 0) {//add y later
+    while (x_is_homed == 0) {//add y later
         // Wait for the crash...
     }
 
     x_homing = 0; //this is done to prevent more interruptions (debouncing method)
+
+    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_RESET);  // Y EN
+
+    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+
+   while(y_is_homed == 0) {}
+
     y_homing = 0;
+
+    HAL_Delay(500);
 
     //Reverse direction (Away from switch)
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
 
 
     //Turn motor back on
@@ -245,6 +256,10 @@ void Gantry_Home(void) {
     //Stop motor- homing is finished
     HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_1);
     HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
+
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_SET);
+
 
 
     //recalibrate

@@ -1,0 +1,10 @@
+../Core/Src/main.c:36:6:joystick_correct	56	static
+../Core/Src/main.c:93:5:getX	32	static
+../Core/Src/main.c:103:5:getY	32	static
+../Core/Src/main.c:119:5:main	184	static
+../Core/Src/main.c:276:6:SystemClock_Config	96	static
+../Core/Src/main.c:327:13:MX_ADC1_Init	32	static
+../Core/Src/main.c:385:13:MX_LPUART1_UART_Init	8	static
+../Core/Src/main.c:433:13:MX_GPIO_Init	16	static
+../Core/Src/main.c:455:1:__io_putchar	16	static
+../Core/Src/main.c:467:6:Error_Handler	4	static,ignoring_inline_asm

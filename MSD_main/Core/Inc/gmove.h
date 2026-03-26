@@ -4,23 +4,18 @@
 #include "main.h"
 
 #define STEPS_PER_MM (800.0 / 41.0)
-#define AX 0
-#define AY 1
+#define ldX 1
+#define ldY 0
+#define aX 0
+#define aY 1
 
-extern volatile int32_t current_x_steps;
-extern volatile int32_t current_y_steps;
-extern volatile uint8_t x_homing;
-extern volatile uint8_t y_homing;
-extern volatile uint8_t x_is_homed;
-extern volatile uint8_t y_is_homed;
-extern volatile int32_t target_x;
-extern volatile int32_t target_y;
-extern volatile double curr_x;
-extern volatile double curr_y;
-extern volatile int8_t dir_x;
-extern volatile int8_t dir_y;
+// Expose variables to main.c
+extern volatile int remSteps;
+extern volatile double currX;
+extern volatile double currY;
 
+// Function prototypes
 void Gantry_Home(void);
-void mMove(uint8_t axis, double target_mm);
+void mLine(double targetXl, double targetYl);
 
 #endif /* GMOVE_H */

@@ -93,9 +93,9 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_TIM1_Init();
   MX_TIM2_Init();
   MX_TIM4_Init();
-  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   /*
   //enable the drivers
@@ -113,7 +113,24 @@ int main(void)
 
 	*/
   Gantry_Home();
-  mMove(0, percentDist(50));
+
+  HAL_Delay(100);
+
+  mLine(percentDist(10.0), percentDist(10.0));
+  while (remSteps > 0) { }
+
+  mLine(percentDist(10.0), percentDist(80.0));
+  while (remSteps > 0) { }
+
+  mLine(percentDist(80.0), percentDist(80.0));
+  while (remSteps > 0) { }
+
+  mLine(percentDist(80.0), percentDist(10.0));
+  while (remSteps > 0) { }
+
+  mLine(percentDist(10.0), percentDist(10.0));
+  while (remSteps > 0) { }
+
 
   /* USER CODE END 2 */
 

@@ -252,8 +252,8 @@ int main(void)
   //      float *x_out, float *y_out,
   //      float *mag, float *angle)
 	  joystick_correct(&joy, X_RAW, Y_RAW, &X_POS, &Y_POS, &MAG, &ANGLE);
-	  printf("%d,%d\r\n", X_RAW, Y_RAW);
-	  // printf("%f,%f\r\n", X_POS, Y_POS);
+	  // printf("%d,%d\r\n", X_RAW, Y_RAW);
+	  printf("%f,%f\r\n", X_POS, Y_POS);
 
 	  // TODO: this is the polar coordinates (hopefully the ai cooked)
 	  // printf("mag=%f, angle=%f\r\n", MAG, ANGLE);

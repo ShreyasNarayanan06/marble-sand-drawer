@@ -35,8 +35,6 @@ volatile uint32_t debugArrX = 0;
 volatile uint32_t debugArrY = 0;
 volatile int32_t debugYCB = 0;
 
-volatile uint8_t xMoving = 0;
-volatile uint8_t yMoving = 0;
 
 
 
@@ -199,44 +197,71 @@ void lineMove(double target_x_mm, double target_y_mm) {
     currX = target_x_mm;
     currY = target_y_mm;
 
+//    if (stepsX > 0) {
+//    	xMoving = 1;
+//        __HAL_TIM_SET_AUTORELOAD(&htim4, arrX);
+//        __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, arrX / 2);
+//        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_RESET); // Enable X
+//        HAL_TIM_PWM_Start_IT(&htim4, TIM_CHANNEL_1);
+//    }
+//
+//    debugStepsX = stepsX; debugStepsY = stepsY; debugArrX = arrX; debugArrY = arrY;
+//
+//
+//    if (stepsY > 0) {
+//    	yMoving = 1;
+//        __HAL_TIM_SET_AUTORELOAD(&htim2, arrY);
+//        __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, arrY / 2);
+//        HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_RESET); // Enable Y
+//        HAL_TIM_PWM_Start_IT(&htim2, TIM_CHANNEL_1);
+//    }
+
     if (stepsX > 0) {
-    	xMoving = 1;
-        __HAL_TIM_SET_AUTORELOAD(&htim4, arrX);
-        __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, arrX / 2);
-        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_RESET); // Enable X
-        HAL_TIM_PWM_Start_IT(&htim4, TIM_CHANNEL_1);
-    }
+           targetX = stepsX;
 
-    debugStepsX = stepsX; debugStepsY = stepsY; debugArrX = arrX; debugArrY = arrY;
+           // Stop timer fully, clear everything, then restart
+           HAL_TIM_PWM_Stop_IT(&htim4, TIM_CHANNEL_1);
+           __HAL_TIM_SET_COUNTER(&htim4, 0);
+           __HAL_TIM_SET_AUTORELOAD(&htim4, arrX);
+           __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, arrX / 2);
+           __HAL_TIM_CLEAR_FLAG(&htim4, TIM_FLAG_CC1);
+           __HAL_TIM_CLEAR_FLAG(&htim4, TIM_FLAG_UPDATE);
+           HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_RESET);
+           HAL_TIM_PWM_Start_IT(&htim4, TIM_CHANNEL_1);
+       }
+
+       if (stepsY > 0) {
+           targetY = stepsY;
+
+           HAL_TIM_PWM_Stop_IT(&htim2, TIM_CHANNEL_1);
+           __HAL_TIM_SET_COUNTER(&htim2, 0);
+           __HAL_TIM_SET_AUTORELOAD(&htim2, arrY);
+           __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, arrY / 2);
+           __HAL_TIM_CLEAR_FLAG(&htim2, TIM_FLAG_CC1);
+           __HAL_TIM_CLEAR_FLAG(&htim2, TIM_FLAG_UPDATE);
+           HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_RESET);
+           HAL_TIM_PWM_Start_IT(&htim2, TIM_CHANNEL_1);
+       }
+  }
 
 
-    if (stepsY > 0) {
-    	yMoving = 1;
-        __HAL_TIM_SET_AUTORELOAD(&htim2, arrY);
-        __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, arrY / 2);
-        HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_RESET); // Enable Y
-        HAL_TIM_PWM_Start_IT(&htim2, TIM_CHANNEL_1);
-    }
-}
 
 
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
     if (htim->Instance == TIM4 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
-        if (targetX > 0) {
+        if (targetX >= 0) {
             targetX--;
         } else {
             HAL_TIM_PWM_Stop_IT(&htim4, TIM_CHANNEL_1);
-            xMoving = 0;
         }
     }
     else if (htim->Instance == TIM2 ){//&& htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
     	debugYCB++;
-        if (targetY > 0) {
+        if (targetY >= 0) {
             targetY--;
         } else {
             HAL_TIM_PWM_Stop_IT(&htim2, TIM_CHANNEL_1);
-            yMoving = 0;
         }
     }
 }

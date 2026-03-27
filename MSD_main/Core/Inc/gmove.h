@@ -22,5 +22,6 @@ extern volatile int8_t dir_y;
 
 void Gantry_Home(void);
 void mMove(uint8_t axis, double target_mm);
+void lineMove(double target_x_mm, double target_y_mm);
 
 #endif /* GMOVE_H */

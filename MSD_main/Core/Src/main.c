@@ -238,28 +238,47 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  int X_RAW = getX();
-	  int Y_RAW = getY();
+	  float X_POS = 0, Y_POS = 0, MAG = 0, ANGLE = 0;
+	       joystick_correct(&joy, getX(), getY(), &X_POS, &Y_POS, &MAG, &ANGLE);
 
-	// printf("raw: %d,%d\r\n", ADC_VAL1, ADC_VAL2);
+	       if (MAG > 0.2f) { // Increased deadzone to stop drift
 
-	  // Process ADC values
-	  float X_POS = 0;
-	  float Y_POS = 0;
-	  float MAG = 0;
-	  float ANGLE = 0;
-	  // void joystick_correct(const JoyCal *cal, float x_raw, float y_raw,
-  //      float *x_out, float *y_out,
-  //      float *mag, float *angle)
-	  joystick_correct(&joy, X_RAW, Y_RAW, &X_POS, &Y_POS, &MAG, &ANGLE);
-	  // printf("%d,%d\r\n", X_RAW, Y_RAW);
-	  printf("%f,%f\r\n", X_POS, Y_POS);
+	           // 1. Set Directions
+	           HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, (X_POS >= 0) ? GPIO_PIN_RESET : GPIO_PIN_SET);
+	           HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0,  (Y_POS >= 0) ? GPIO_PIN_SET : GPIO_PIN_RESET);
 
-	  // TODO: this is the polar coordinates (hopefully the ai cooked)
-	  // printf("mag=%f, angle=%f\r\n", MAG, ANGLE);
+	           // 2. Map joystick throw to speed (Lower ARR = faster steps)
+	           // 10000 is slow, 2000 is fast. Adjust these numbers to tune speed.
+	           uint32_t arrX = 10000 - (fabs(X_POS) * 8000);
+	           uint32_t arrY = 10000 - (fabs(Y_POS) * 8000);
 
-	  // TODO: figure out sampling rate
-	  HAL_Delay(100);
+	           // 3. Drive X
+	           if (fabs(X_POS) > 0.15f) {
+	               __HAL_TIM_SET_AUTORELOAD(&htim4, arrX);
+	               __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, arrX / 2);
+	               HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+	           } else {
+	               HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_1);
+	           }
+
+	           // 4. Drive Y
+	           if (fabs(Y_POS) > 0.15f) {
+	               __HAL_TIM_SET_AUTORELOAD(&htim2, arrY);
+	               __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, arrY / 2);
+	               HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+	           } else {
+	               HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
+	           }
+
+	       } else {
+	           // Full stop when stick is centered
+	           HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_1);
+	           HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
+	       }
+
+	       HAL_Delay(10);
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

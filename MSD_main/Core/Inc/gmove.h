@@ -15,8 +15,8 @@ extern volatile uint8_t x_is_homed;
 extern volatile uint8_t y_is_homed;
 extern volatile int32_t target_x;
 extern volatile int32_t target_y;
-extern volatile double curr_x;
-extern volatile double curr_y;
+extern volatile double currX;
+extern volatile double currY;
 extern volatile int8_t dir_x;
 extern volatile int8_t dir_y;
 

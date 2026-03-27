@@ -114,15 +114,18 @@ int main(void)
 	*/
   Gantry_Home();
   //mMove(0, percentDist(50));
-  HAL_Delay(1000);
-  lineMove(percentDist(50), percentDist(50));
+//  HAL_Delay(1000);
+//
+//// // lineMove(percentDist(50), percentDist(50));
 //  lineMove(percentDist(10), percentDist(10));
-//  HAL_Delay(2000);
+//  HAL_Delay(500);
 //  lineMove(percentDist(80), percentDist(80));
-//  HAL_Delay(2000);
+//  HAL_Delay(500);
 //  lineMove(percentDist(80), percentDist(10));
-//  HAL_Delay(2000);
+//  HAL_Delay(500);
 //  lineMove(percentDist(10), percentDist(10));
+
+  procCSV();
 
 
 

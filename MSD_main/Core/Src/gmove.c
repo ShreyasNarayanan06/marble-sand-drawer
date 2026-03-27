@@ -1,6 +1,7 @@
 #include "main.h"
 #include "tim.h"
 #include "gpio.h"
+#include "path_data.h"
 
 volatile int32_t current_x_steps = 0;
 volatile int32_t current_y_steps = 0;
@@ -34,6 +35,9 @@ volatile int32_t debugStepsY = 0;
 volatile uint32_t debugArrX = 0;
 volatile uint32_t debugArrY = 0;
 volatile int32_t debugYCB = 0;
+
+#define percentDist(p) ((p) * 5.03238)
+
 
 
 
@@ -177,7 +181,7 @@ void lineMove(double target_x_mm, double target_y_mm) {
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, (dX == 1) ? GPIO_PIN_RESET : GPIO_PIN_SET);
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0,  (dY == 1) ? GPIO_PIN_SET   : GPIO_PIN_RESET);
 
-    uint32_t base_arr = 999;  // your existing top speed
+    uint32_t base_arr = 2000;  // your existing top speed
     uint32_t arrX = base_arr;
     uint32_t arrY = base_arr;
 
@@ -194,8 +198,12 @@ void lineMove(double target_x_mm, double target_y_mm) {
     dirY = dY;
     targetX = stepsX;
     targetY = stepsY;
+
     currX = target_x_mm;
     currY = target_y_mm;
+
+    targetX = (stepsX > 0) ? stepsX : -1;
+    targetY = (stepsY > 0) ? stepsY : -1;
 
 //    if (stepsX > 0) {
 //    	xMoving = 1;
@@ -217,31 +225,30 @@ void lineMove(double target_x_mm, double target_y_mm) {
 //    }
 
     if (stepsX > 0) {
-           targetX = stepsX;
 
-           // Stop timer fully, clear everything, then restart
-           HAL_TIM_PWM_Stop_IT(&htim4, TIM_CHANNEL_1);
-           __HAL_TIM_SET_COUNTER(&htim4, 0);
-           __HAL_TIM_SET_AUTORELOAD(&htim4, arrX);
-           __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, arrX / 2);
-           __HAL_TIM_CLEAR_FLAG(&htim4, TIM_FLAG_CC1);
-           __HAL_TIM_CLEAR_FLAG(&htim4, TIM_FLAG_UPDATE);
-           HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_RESET);
-           HAL_TIM_PWM_Start_IT(&htim4, TIM_CHANNEL_1);
-       }
+	   // Stop timer fully, clear everything, then restart
+	   HAL_TIM_PWM_Stop_IT(&htim4, TIM_CHANNEL_1);
+	   __HAL_TIM_SET_COUNTER(&htim4, 0);
+	   __HAL_TIM_SET_AUTORELOAD(&htim4, arrX);
+	   __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, arrX / 2);
+	   __HAL_TIM_CLEAR_FLAG(&htim4, TIM_FLAG_CC1);
+	   __HAL_TIM_CLEAR_FLAG(&htim4, TIM_FLAG_UPDATE);
+	   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_RESET);
+	   HAL_TIM_PWM_Start_IT(&htim4, TIM_CHANNEL_1);
+     }
 
-       if (stepsY > 0) {
-           targetY = stepsY;
+     if (stepsY > 0) {
+	   HAL_TIM_PWM_Stop_IT(&htim2, TIM_CHANNEL_1);
+	   __HAL_TIM_SET_COUNTER(&htim2, 0);
+	   __HAL_TIM_SET_AUTORELOAD(&htim2, arrY);
+	   __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, arrY / 2);
+	   __HAL_TIM_CLEAR_FLAG(&htim2, TIM_FLAG_CC1);
+	   __HAL_TIM_CLEAR_FLAG(&htim2, TIM_FLAG_UPDATE);
+	   HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_RESET);
+	   HAL_TIM_PWM_Start_IT(&htim2, TIM_CHANNEL_1);
+     }
 
-           HAL_TIM_PWM_Stop_IT(&htim2, TIM_CHANNEL_1);
-           __HAL_TIM_SET_COUNTER(&htim2, 0);
-           __HAL_TIM_SET_AUTORELOAD(&htim2, arrY);
-           __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, arrY / 2);
-           __HAL_TIM_CLEAR_FLAG(&htim2, TIM_FLAG_CC1);
-           __HAL_TIM_CLEAR_FLAG(&htim2, TIM_FLAG_UPDATE);
-           HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_RESET);
-           HAL_TIM_PWM_Start_IT(&htim2, TIM_CHANNEL_1);
-       }
+     while(targetX >= 0 || targetY >= 0){}
   }
 
 
@@ -250,20 +257,35 @@ void lineMove(double target_x_mm, double target_y_mm) {
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
     if (htim->Instance == TIM4 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
-        if (targetX >= 0) {
+        if (targetX > 0) {
             targetX--;
-        } else {
+        }
+
+        if(targetX == 0) {
             HAL_TIM_PWM_Stop_IT(&htim4, TIM_CHANNEL_1);
+            targetX = -1;
         }
     }
     else if (htim->Instance == TIM2 ){//&& htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
     	debugYCB++;
-        if (targetY >= 0) {
+        if (targetY > 0) {
             targetY--;
-        } else {
+        }
+
+        if(targetY == 0) {
             HAL_TIM_PWM_Stop_IT(&htim2, TIM_CHANNEL_1);
+            targetY = -1;
         }
     }
+}
+
+void procCSV(void) {
+	for(int i = 0; i < NUM_PATH_POINTS; i++) {
+		double target_x = path_data[i][0];
+		double target_y = path_data[i][1];
+
+		lineMove(percentDist(target_x), percentDist(target_y));
+	}
 }
 
 

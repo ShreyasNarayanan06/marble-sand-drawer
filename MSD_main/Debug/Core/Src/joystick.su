@@ -1,4 +1,4 @@
 ../Core/Src/joystick.c:9:5:getX	32	static
-../Core/Src/joystick.c:20:5:getY	32	static
-../Core/Src/joystick.c:31:6:joystick_correct	56	static
-../Core/Src/joystick.c:55:8:joystick_calibrate	160	static
+../Core/Src/joystick.c:22:5:getY	32	static
+../Core/Src/joystick.c:35:6:joystick_correct	56	static
+../Core/Src/joystick.c:59:8:joystick_calibrate	160	static

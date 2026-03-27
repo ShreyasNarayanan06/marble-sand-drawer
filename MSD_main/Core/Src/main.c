@@ -18,12 +18,16 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
+#include "usart.h"
 #include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "gmove.h"
+#include "stdio.h"
+#include "joystick.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -42,7 +46,6 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-
 /* USER CODE BEGIN PV */
 
 
@@ -96,6 +99,8 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM2_Init();
   MX_TIM4_Init();
+  MX_ADC1_Init();
+  MX_LPUART1_UART_Init();
   /* USER CODE BEGIN 2 */
   /*
   //enable the drivers
@@ -111,25 +116,119 @@ int main(void)
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 
 
-	*/
-  Gantry_Home();
-  //mMove(0, percentDist(50));
+//	*/
+//  Gantry_Home();
+//  //mMove(0, percentDist(50));
 //  HAL_Delay(1000);
-//
-//// // lineMove(percentDist(50), percentDist(50));
-//  lineMove(percentDist(10), percentDist(10));
+////
+////// // lineMove(percentDist(50), percentDist(50));
+//  lineMove(percentDist(50), percentDist(50), 100);
 //  HAL_Delay(500);
-//  lineMove(percentDist(80), percentDist(80));
-//  HAL_Delay(500);
+//  lineMove(percentDist(10), percentDist(10), 50);
+////  HAL_Delay(500);
 //  lineMove(percentDist(80), percentDist(10));
 //  HAL_Delay(500);
 //  lineMove(percentDist(10), percentDist(10));
 
-  procCSV();
+  //procCSV();
 
 
 
   //mMove(1, percentDist(50));
+
+  setvbuf(stdout, NULL, _IONBF, 0);
+  // Joystick code
+  int CALIBRATE_TIME_DELAY = 2000; // Time for calibration
+  // TODO: MEASURE CENTER
+  printf("Keep the stick at neutral (center)\r\n");
+  HAL_Delay(CALIBRATE_TIME_DELAY);
+  printf("Measuring Center!\r\n");
+  int centerX = getX(); // 2000
+  int centerY = getY(); // 1900
+
+  // TODO: MEASURE X_NEG
+  printf("Move the stick to X_NEG (left)\r\n");
+  HAL_Delay(CALIBRATE_TIME_DELAY);
+  printf("Measuring X_NEG!\r\n");
+  int leftX= getX();
+  int leftY= getY();
+
+  // TODO: MEASURE X_POS
+  printf("Move the stick to X_POS (right)\r\n");
+  HAL_Delay(CALIBRATE_TIME_DELAY);
+  printf("Measuring X_POS!\r\n");
+  int rightX= getX();
+  int rightY= getY();
+
+  // TODO: MEASURE Y_NEG
+  printf("Move the stick to Y_NEG (down)\r\n");
+  HAL_Delay(CALIBRATE_TIME_DELAY);
+  printf("Measuring Y_NEG!\r\n");
+  int downX= getX();
+  int downY= getY();
+
+  // TODO: MEASURE Y_POS
+  printf("Move the stick to Y_POS (up)\r\n");
+  HAL_Delay(CALIBRATE_TIME_DELAY);
+  printf("Measuring Y_POS!\r\n");
+  int upX= getX();
+  int upY= getY();
+
+  // TODO: RUN CALIBRATE FUNCTION TO GENERATE COEFFFS
+  // Step 1: subtract center from each extreme point
+  float relLeftX = (float)leftX - centerX;
+  float relLeftY = (float)leftY - centerY;
+
+  float relRightX = (float)rightX - centerX;
+  float relRightY = (float)rightY - centerY;
+
+  float relDownX = (float)downX - centerX;
+  float relDownY = (float)downY - centerY;
+
+  float relUpX = (float)upX - centerX;
+  float relUpY = (float)upY - centerY;
+
+  // Step 2: compute basis vectors
+  // ex = (pR - pL)/2
+  float eXX = (relRightX - relLeftX) * 0.5f;
+  float eXY = (relRightY - relLeftY) * 0.5f;
+
+  // ey = (pU - pD)/2
+  float eYX = (relUpX - relDownX) * 0.5f;
+  float eYY = (relUpY - relDownY) * 0.5f;
+
+  // Step 3: build B = [ ex.x  ey.x
+  //                     ex.y  ey.y ]
+//  cal.B.m11 = cal.ex.x;
+//  cal.B.m12 = cal.ey.x;
+//  cal.B.m21 = cal.ex.y;
+//  cal.B.m22 = cal.ey.y;
+
+ // Step 4: invert B to get A
+ float det = eXX * eYY - eYX * eXY;
+
+ float a11 =  eYY / det;
+ float a12 = -eYX / det;
+ float a21 = -eXY / det;
+ float a22 =  eXX / det;
+//  // 0.00096237
+//  // 0.00048359
+//  // 0.00001819
+//  // -0.00048837
+//
+////   // TODO: INSTANTIATE JOYCAL
+//
+  JoyCal joy = {
+		  centerX, centerY,
+      a11, a12,
+      a21, a22
+  };
+
+//  JoyCal joy = {
+//  		  2000, 1900,
+//        0.00096237, 0.00048359,
+//        0.00001819, -0.00048837
+//  };
 
   /* USER CODE END 2 */
 
@@ -138,6 +237,37 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+	  //volatile char b[6] = "hello";
+	  //printf("hello");
+//	  char buf[6] = "hello";
+	  //HAL_UART_Transmit(&hlpuart1, (uint8_t *)&buf, 6, 0xFFFF);
+
+//	  float X_POS = 0;
+//	  float Y_POS = 0;
+//
+//	  get_joystick_pos(&X_POS, &Y_POS);
+//
+//	  printf("X: %.2f | Y: %.2f\r\n", X_POS, Y_POS);
+//
+//	  HAL_Delay(100); // 500ms is a bit slow for joystick feel
+
+	  int X_RAW = getX();
+	  int Y_RAW = getY();
+
+	  // Process ADC values
+	  float X_POS = 0;
+	  float Y_POS = 0;
+	  float MAG = 0;
+	  float ANGLE = 0;
+	  // void joystick_correct(const JoyCal *cal, float x_raw, float y_raw,
+//      float *x_out, float *y_out,
+//      float *mag, float *angle)
+	  joystick_correct(&joy, X_RAW, Y_RAW, &X_POS, &Y_POS, &MAG, &ANGLE);
+	  printf("%f,%f\r\n", X_POS, Y_POS);
+
+	  // TODO: figure out sampling rate
+	  HAL_Delay(100);
+
 
     /* USER CODE BEGIN 3 */
   }
@@ -189,11 +319,16 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
-
-
-
-
+#ifdef __GNUC__
+#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+  #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif /* __GNUC__ */
+PUTCHAR_PROTOTYPE
+{
+  HAL_UART_Transmit(&hlpuart1, (uint8_t *)&ch, 1, 0xFFFF);
+  return ch;
+}
 /* USER CODE END 4 */
 
 /**

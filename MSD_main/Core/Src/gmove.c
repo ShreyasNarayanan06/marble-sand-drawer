@@ -38,7 +38,7 @@ volatile int32_t debugYCB = 0;
 
 #define percentDist(p) ((p) * 5.03238)
 
-
+volatile double MAX_ARR = 8000;
 
 
 
@@ -161,7 +161,7 @@ void mMove(uint8_t axis, double target_mm) {
     }
 }
 
-void lineMove(double target_x_mm, double target_y_mm) {
+void lineMove(double target_x_mm, double target_y_mm, double speed) {
 	//while (xMoving || yMoving) {}
     double distX = target_x_mm - currX;
     double distY = target_y_mm - currY;
@@ -181,7 +181,7 @@ void lineMove(double target_x_mm, double target_y_mm) {
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, (dX == 1) ? GPIO_PIN_RESET : GPIO_PIN_SET);
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0,  (dY == 1) ? GPIO_PIN_SET   : GPIO_PIN_RESET);
 
-    uint32_t base_arr = 2000;  // your existing top speed
+    uint32_t base_arr = -70.01 * speed + MAX_ARR;  // your existing top speed
     uint32_t arrX = base_arr;
     uint32_t arrY = base_arr;
 
@@ -284,7 +284,7 @@ void procCSV(void) {
 		double target_x = path_data[i][0];
 		double target_y = path_data[i][1];
 
-		lineMove(percentDist(target_x), percentDist(target_y));
+		lineMove(percentDist(target_x), percentDist(target_y), 100);
 	}
 }
 

@@ -9,7 +9,7 @@ extern ADC_HandleTypeDef hadc1;
 int getX(void) {
     //Set ADC Channel to 1
     ADC_ChannelConfTypeDef sConfig = {0};
-    sConfig.Channel = ADC_CHANNEL_1;
+    sConfig.Channel = ADC_CHANNEL_2;
     HAL_ADC_ConfigChannel(&hadc1, &sConfig);
     //Read ADC 1
     HAL_ADC_Start(&hadc1);
@@ -20,7 +20,7 @@ int getX(void) {
 int getY(void) {
     //Set ADC Channel to 2
     ADC_ChannelConfTypeDef sConfig = {0};
-    sConfig.Channel = ADC_CHANNEL_2;
+    sConfig.Channel = ADC_CHANNEL_3;
     HAL_ADC_ConfigChannel(&hadc1, &sConfig);
     //Read ADC 2
     HAL_ADC_Start(&hadc1);

@@ -1,7 +1,7 @@
 import csv
 
 # --- Configuration ---
-csv_filename = "circle.csv"   # The file you want to read
+csv_filename = "triangle.csv"   # The file you want to read
 c_filename = "path_data.c"    # The C file it will create
 h_filename = "path_data.h"    # The Header file it will create
 

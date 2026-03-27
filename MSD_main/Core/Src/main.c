@@ -46,6 +46,7 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+
 /* USER CODE BEGIN PV */
 
 
@@ -130,13 +131,14 @@ int main(void)
 //  HAL_Delay(500);
 //  lineMove(percentDist(10), percentDist(10));
 
-  //procCSV();
+//  procCSV();
 
 
 
   //mMove(1, percentDist(50));
-
-  setvbuf(stdout, NULL, _IONBF, 0);
+//
+//  setvbuf(stdout, NULL, _IONBF, 0);
+//
   // Joystick code
   int CALIBRATE_TIME_DELAY = 2000; // Time for calibration
   // TODO: MEASURE CENTER
@@ -236,23 +238,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* USER CODE END WHILE */
-	  //volatile char b[6] = "hello";
-	  //printf("hello");
-//	  char buf[6] = "hello";
-	  //HAL_UART_Transmit(&hlpuart1, (uint8_t *)&buf, 6, 0xFFFF);
-
-//	  float X_POS = 0;
-//	  float Y_POS = 0;
-//
-//	  get_joystick_pos(&X_POS, &Y_POS);
-//
-//	  printf("X: %.2f | Y: %.2f\r\n", X_POS, Y_POS);
-//
-//	  HAL_Delay(100); // 500ms is a bit slow for joystick feel
-
 	  int X_RAW = getX();
 	  int Y_RAW = getY();
+
+	// printf("raw: %d,%d\r\n", ADC_VAL1, ADC_VAL2);
 
 	  // Process ADC values
 	  float X_POS = 0;
@@ -260,14 +249,18 @@ int main(void)
 	  float MAG = 0;
 	  float ANGLE = 0;
 	  // void joystick_correct(const JoyCal *cal, float x_raw, float y_raw,
-//      float *x_out, float *y_out,
-//      float *mag, float *angle)
+  //      float *x_out, float *y_out,
+  //      float *mag, float *angle)
 	  joystick_correct(&joy, X_RAW, Y_RAW, &X_POS, &Y_POS, &MAG, &ANGLE);
-	  printf("%f,%f\r\n", X_POS, Y_POS);
+	  printf("%d,%d\r\n", X_RAW, Y_RAW);
+	  // printf("%f,%f\r\n", X_POS, Y_POS);
+
+	  // TODO: this is the polar coordinates (hopefully the ai cooked)
+	  // printf("mag=%f, angle=%f\r\n", MAG, ANGLE);
 
 	  // TODO: figure out sampling rate
 	  HAL_Delay(100);
-
+    /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   }

@@ -259,6 +259,9 @@ int main(void)
   	  joystick_correct(&joy, X_RAW, Y_RAW, &X_POS, &Y_POS, &MAG, &ANGLE);
   	  printf("%f,%f\r\n", X_POS, Y_POS);
 
+  	  // TODO: this is the polar coordinates (hopefully the ai cooked)
+  	  printf("mag=%f, angle=%f\r\n", MAG, ANGLE);
+
   	  // TODO: figure out sampling rate
   	  HAL_Delay(100);
 

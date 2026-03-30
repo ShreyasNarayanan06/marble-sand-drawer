@@ -1,6 +1,8 @@
 #include "joystick.h"
 #include "stdio.h"
 #include "usart.h"
+#include "tim.h"
+#include "gpio.h"
 
 extern ADC_HandleTypeDef hadc1;
 
@@ -133,6 +135,38 @@ JoyCal joystick_calibrate(void)
     };
 
     return joy;
+}
+
+#include <math.h>
+
+void joyMove(float x_val, float y_val) {
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_RESET);
+
+    __HAL_TIM_DISABLE_IT(&htim4, TIM_IT_CC1);
+    __HAL_TIM_DISABLE_IT(&htim2, TIM_IT_CC1);
+
+    if (fabs(x_val) < 0.1f) {
+        HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_1);
+    } else {
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, (x_val > 0) ? GPIO_PIN_RESET : GPIO_PIN_SET);
+        uint32_t arrX = 8000 - (fabs(x_val) * 7000);
+
+        __HAL_TIM_SET_AUTORELOAD(&htim4, arrX);
+        __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, arrX / 2);
+        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+    }
+
+    if (fabs(y_val) < 0.1f) {
+        HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
+    } else {
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0,  (y_val > 0) ? GPIO_PIN_SET   : GPIO_PIN_RESET);
+        uint32_t arrY = 8000 - (fabs(y_val) * 7000);
+
+        __HAL_TIM_SET_AUTORELOAD(&htim2, arrY);
+        __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, arrY / 2);
+        HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+    }
 }
 
 

@@ -64,7 +64,7 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+volatile uint8_t manual_mode = 1;
 
 /* USER CODE END 0 */
 
@@ -103,163 +103,34 @@ int main(void)
   MX_ADC1_Init();
   MX_LPUART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  /*
-  //enable the drivers
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_RESET); // X-axis EN (PD11)
-  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_RESET);  // Y-axis EN (PE0)
-
-  //Set direction
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);   // X-axis DIR (PD13)
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);    // Y-axis DIR (PB0)
-
-  //test PWM signal driving
-  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-
-
-//	*/
-//  Gantry_Home();
-//  //mMove(0, percentDist(50));
-//  HAL_Delay(1000);
-////
-////// // lineMove(percentDist(50), percentDist(50));
-//  lineMove(percentDist(50), percentDist(50), 100);
-//  HAL_Delay(500);
-//  lineMove(percentDist(10), percentDist(10), 50);
-////  HAL_Delay(500);
-//  lineMove(percentDist(80), percentDist(10));
-//  HAL_Delay(500);
-//  lineMove(percentDist(10), percentDist(10));
-
-//  procCSV();
-
-
-
-  //mMove(1, percentDist(50));
-//
-//  setvbuf(stdout, NULL, _IONBF, 0);
-//
-  // Joystick code
-  int CALIBRATE_TIME_DELAY = 2000; // Time for calibration
-  // TODO: MEASURE CENTER
-  printf("Keep the stick at neutral (center)\r\n");
-  HAL_Delay(CALIBRATE_TIME_DELAY);
-  printf("Measuring Center!\r\n");
-  int centerX = getX(); // 2000
-  int centerY = getY(); // 1900
-
-  // TODO: MEASURE X_NEG
-  printf("Move the stick to X_NEG (left)\r\n");
-  HAL_Delay(CALIBRATE_TIME_DELAY);
-  printf("Measuring X_NEG!\r\n");
-  int leftX= getX();
-  int leftY= getY();
-
-  // TODO: MEASURE X_POS
-  printf("Move the stick to X_POS (right)\r\n");
-  HAL_Delay(CALIBRATE_TIME_DELAY);
-  printf("Measuring X_POS!\r\n");
-  int rightX= getX();
-  int rightY= getY();
-
-  // TODO: MEASURE Y_NEG
-  printf("Move the stick to Y_NEG (down)\r\n");
-  HAL_Delay(CALIBRATE_TIME_DELAY);
-  printf("Measuring Y_NEG!\r\n");
-  int downX= getX();
-  int downY= getY();
-
-  // TODO: MEASURE Y_POS
-  printf("Move the stick to Y_POS (up)\r\n");
-  HAL_Delay(CALIBRATE_TIME_DELAY);
-  printf("Measuring Y_POS!\r\n");
-  int upX= getX();
-  int upY= getY();
-
-  // TODO: RUN CALIBRATE FUNCTION TO GENERATE COEFFFS
-  // Step 1: subtract center from each extreme point
-  float relLeftX = (float)leftX - centerX;
-  float relLeftY = (float)leftY - centerY;
-
-  float relRightX = (float)rightX - centerX;
-  float relRightY = (float)rightY - centerY;
-
-  float relDownX = (float)downX - centerX;
-  float relDownY = (float)downY - centerY;
-
-  float relUpX = (float)upX - centerX;
-  float relUpY = (float)upY - centerY;
-
-  // Step 2: compute basis vectors
-  // ex = (pR - pL)/2
-  float eXX = (relRightX - relLeftX) * 0.5f;
-  float eXY = (relRightY - relLeftY) * 0.5f;
-
-  // ey = (pU - pD)/2
-  float eYX = (relUpX - relDownX) * 0.5f;
-  float eYY = (relUpY - relDownY) * 0.5f;
-
-  // Step 3: build B = [ ex.x  ey.x
-  //                     ex.y  ey.y ]
-//  cal.B.m11 = cal.ex.x;
-//  cal.B.m12 = cal.ey.x;
-//  cal.B.m21 = cal.ex.y;
-//  cal.B.m22 = cal.ey.y;
-
- // Step 4: invert B to get A
- float det = eXX * eYY - eYX * eXY;
-
- float a11 =  eYY / det;
- float a12 = -eYX / det;
- float a21 = -eXY / det;
- float a22 =  eXX / det;
-//  // 0.00096237
-//  // 0.00048359
-//  // 0.00001819
-//  // -0.00048837
-//
-////   // TODO: INSTANTIATE JOYCAL
-//
-  JoyCal joy = {
-		  centerX, centerY,
-      a11, a12,
-      a21, a22
-  };
-
-//  JoyCal joy = {
-//  		  2000, 1900,
-//        0.00096237, 0.00048359,
-//        0.00001819, -0.00048837
-//  };
-
+  JoyCal joy = joystick_calibrate();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+ // joyMove(1.0f, 0.0f); // Force full speed X
+//    JoyCal joy = {
+//    		  2000, 1900,
+//          0.00096237, 0.00048359,
+//          0.00001819, -0.00048837
+//    };
+
+  float x_out, y_out, mag, angle;
+
   while (1)
   {
-	  int X_RAW = getX();
-	  int Y_RAW = getY();
-
-	// printf("raw: %d,%d\r\n", ADC_VAL1, ADC_VAL2);
-
-	  // Process ADC values
-	  float X_POS = 0;
-	  float Y_POS = 0;
-	  float MAG = 0;
-	  float ANGLE = 0;
-	  // void joystick_correct(const JoyCal *cal, float x_raw, float y_raw,
-  //      float *x_out, float *y_out,
-  //      float *mag, float *angle)
-	  joystick_correct(&joy, X_RAW, Y_RAW, &X_POS, &Y_POS, &MAG, &ANGLE);
-	  // printf("%d,%d\r\n", X_RAW, Y_RAW);
-	  printf("%f,%f\r\n", X_POS, Y_POS);
-
-	  // TODO: this is the polar coordinates (hopefully the ai cooked)
-	  // printf("mag=%f, angle=%f\r\n", MAG, ANGLE);
-
-	  // TODO: figure out sampling rate
-	  HAL_Delay(100);
+	  if(manual_mode) {
+		  int rawX = getX();
+		  int rawY = getY();
+		  joystick_correct(&joy, rawX, rawY, &x_out, &y_out, &mag, &angle);
+		  joyMove(x_out, y_out);
+		  HAL_Delay(20);
+	  } else {
+		  printf("auto mode");
+		  Gantry_Home();
+		  procCSV();
+		  manual_mode = 1;
+	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

@@ -73,7 +73,7 @@ void Error_Handler(void);
 #define Y_axis_Enable_GPIO_Port GPIOE
 
 /* USER CODE BEGIN Private defines */
-
+extern volatile uint8_t manual_mode;
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

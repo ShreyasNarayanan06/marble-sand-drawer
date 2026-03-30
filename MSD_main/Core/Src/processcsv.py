@@ -1,7 +1,13 @@
 import csv
+import sys
+import os
 
 # --- Configuration ---
-csv_filename = "triangle.csv"   # The file you want to read
+if len(sys.argv) < 2:
+    print("Usage: python processcsv.py <input.csv>")
+    sys.exit(1)
+
+csv_filename = sys.argv[1]   # The file to read (provided on the command line)
 c_filename = "path_data.c"    # The C file it will create
 h_filename = "path_data.h"    # The Header file it will create
 

@@ -19,6 +19,7 @@ void joystick_correct(const JoyCal *cal, float x_raw, float y_raw, float *x_out,
 // Let's wrap your massive calibration script into one clean function!
 JoyCal joystick_calibrate(void);
 
+void joyMove(float x_val, float y_val);
 #endif // JOYSTICK_H
 
 

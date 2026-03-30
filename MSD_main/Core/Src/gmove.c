@@ -41,7 +41,6 @@ volatile int32_t debugYCB = 0;
 volatile double MAX_ARR = 8000;
 
 
-
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     // X-Axis Limit Switch Hit
     if (GPIO_Pin == GPIO_PIN_10) {
@@ -56,6 +55,20 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     	if (y_homing == 1) {
     		HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1); // Kill Y motor
     		y_is_homed = 1;// Tell the system Y is done
+    	}
+    }
+
+    if (GPIO_Pin == GPIO_PIN_2) {
+    	static uint32_t lpt = 0;
+    	uint32_t tcurr = HAL_GetTick();
+
+    	if(tcurr - lpt > 200) {
+    		manual_mode = !manual_mode;
+
+			HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_1);
+			HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
+
+    		lpt = tcurr;
     	}
     }
 }
@@ -248,7 +261,13 @@ void lineMove(double target_x_mm, double target_y_mm, double speed) {
 	   HAL_TIM_PWM_Start_IT(&htim2, TIM_CHANNEL_1);
      }
 
-     while(targetX >= 0 || targetY >= 0){}
+     while(targetX >= 0 || targetY >= 0){
+    	 if(manual_mode == 1) {
+    		 targetX = -1;
+    		 targetY = -1;
+    		 break;
+    	 }
+     }
   }
 
 
@@ -281,6 +300,7 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
 
 void procCSV(void) {
 	for(int i = 0; i < NUM_PATH_POINTS; i++) {
+		if(manual_mode == 1) break;
 		double target_x = path_data[i][0];
 		double target_y = path_data[i][1];
 

@@ -1,0 +1,9 @@
+../Core/Src/main.c:66:6:LCD_ClearScreen	3
+../Core/Src/main.c:99:6:LCD_WriteCommand	1
+../Core/Src/main.c:111:6:LCD_WriteData	1
+../Core/Src/main.c:120:6:LCD_DrawDot	2
+../Core/Src/main.c:168:5:main	1
+../Core/Src/main.c:269:6:SystemClock_Config	4
+../Core/Src/main.c:314:13:MX_SPI1_Init	2
+../Core/Src/main.c:354:13:MX_GPIO_Init	1
+../Core/Src/main.c:398:6:Error_Handler	1

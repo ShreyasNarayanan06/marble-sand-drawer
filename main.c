@@ -31,7 +31,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define IR_ADDR 0xB0
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -40,8 +40,6 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-I2C_HandleTypeDef hi2c1;
-
 UART_HandleTypeDef hlpuart1;
 UART_HandleTypeDef huart1;
 
@@ -52,7 +50,6 @@ UART_HandleTypeDef huart1;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_I2C1_Init(void);
 static void MX_LPUART1_UART_Init(void);
 static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
@@ -93,61 +90,44 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_I2C1_Init();
   MX_LPUART1_UART_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  HAL_StatusTypeDef ret = HAL_OK;
-
-  //initialization
-  uint8_t dataA[2] = {0x30, 0x01};
-  ret = HAL_I2C_Master_Transmit(&hi2c1, IR_ADDR, &dataA[0], 2, 1000);
-
-  uint8_t dataB[2] = {0x30, 0x08};
-  ret = HAL_I2C_Master_Transmit(&hi2c1, IR_ADDR, &dataB[0], 2, 1000);
-
-  uint8_t dataC[2] = {0x06, 0x90};
-  ret = HAL_I2C_Master_Transmit(&hi2c1, IR_ADDR, &dataC[0], 2, 1000);
-
-  uint8_t dataD[2] = {0x08, 0xC0};
-  ret = HAL_I2C_Master_Transmit(&hi2c1, IR_ADDR, &dataD[0], 2, 1000);
-
-  uint8_t dataE[2] = {0x1A, 0x40};
-  ret = HAL_I2C_Master_Transmit(&hi2c1, IR_ADDR, &dataE[0], 2, 1000);
-
-  uint8_t dataF[2] = {0x33, 0x33};
-  ret = HAL_I2C_Master_Transmit(&hi2c1, IR_ADDR, &dataF[0], 2, 1000);
-
-  uint8_t reg[1] = {0x36};
-  uint8_t position[16];
+  uint8_t raw[4];
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  ret = HAL_I2C_Master_Transmit(&hi2c1, IR_ADDR, &reg[0], 1, 1000);
-	  ret = HAL_I2C_Master_Receive(&hi2c1, IR_ADDR, &position[0], 16, 1000);
+      uint8_t start = 0;
+      HAL_StatusTypeDef status;
 
-    uint16_t xPos = position[1];
-	uint16_t yPos = position[2];
-	uint16_t s = position[3];
-	xPos += (s & 0x30) << 4;
-	yPos += (s & 0XC0) << 2;
+      status = HAL_UART_Receive(&huart1, &start, 1, 1000);
+      if (status != HAL_OK)
+      {
+          printf("Timeout or RX fail waiting for start\r\n");
+          continue;
+      }
 
-	uint8_t xHigh = xPos >> 8;
-	uint8_t xLow = xPos & 0x00FF;
-	uint8_t yHigh = yPos >> 8;
-	uint8_t yLow = yPos & 0x00FF;
-	uint8_t start = 0xFF;
+      if (start != 0xFF)
+      {
+          continue;
+      }
 
-	uint8_t xyData[5] = {start, xHigh, xLow, yHigh, yLow};
+      uint8_t raw[4] = {0};
+      status = HAL_UART_Receive(&huart1, raw, 4, 1);
+      if (status != HAL_OK)
+      {
+          printf("Payload RX fail\r\n");
+          continue;
+      }
 
-	HAL_UART_Transmit(&huart1, xyData, 5, 1);
+      uint16_t x = ((uint16_t)raw[0] << 8) | raw[1];
+      uint16_t y = ((uint16_t)raw[2] << 8) | raw[3];
 
-	printf("x = %d, y = %d\n\r", xPos, yPos);
-
-	HAL_Delay(200);
+      printf("raw = %02X %02X %02X %02X | x = %u, y = %u\r\n",
+             raw[0], raw[1], raw[2], raw[3], x, y);
 
     /* USER CODE END WHILE */
 
@@ -201,54 +181,6 @@ void SystemClock_Config(void)
 }
 
 /**
-  * @brief I2C1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_I2C1_Init(void)
-{
-
-  /* USER CODE BEGIN I2C1_Init 0 */
-
-  /* USER CODE END I2C1_Init 0 */
-
-  /* USER CODE BEGIN I2C1_Init 1 */
-
-  /* USER CODE END I2C1_Init 1 */
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x00402D41;
-  hi2c1.Init.OwnAddress1 = 0;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Analogue filter
-  */
-  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Digital filter
-  */
-  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN I2C1_Init 2 */
-
-  /* USER CODE END I2C1_Init 2 */
-
-}
-
-/**
   * @brief LPUART1 Initialization Function
   * @param None
   * @retval None
@@ -271,8 +203,22 @@ static void MX_LPUART1_UART_Init(void)
   hlpuart1.Init.Mode = UART_MODE_TX_RX;
   hlpuart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   hlpuart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  hlpuart1.Init.ClockPrescaler = UART_PRESCALER_DIV1;
   hlpuart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  hlpuart1.FifoMode = UART_FIFOMODE_DISABLE;
   if (HAL_UART_Init(&hlpuart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetTxFifoThreshold(&hlpuart1, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&hlpuart1, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_DisableFifoMode(&hlpuart1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -306,8 +252,21 @@ static void MX_USART1_UART_Init(void)
   huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart1.Init.OverSampling = UART_OVERSAMPLING_16;
   huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart1.Init.ClockPrescaler = UART_PRESCALER_DIV1;
   huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
   if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart1, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart1, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_EnableFifoMode(&huart1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -329,8 +288,9 @@ static void MX_GPIO_Init(void)
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOG_CLK_ENABLE();
+  HAL_PWREx_EnableVddIO2();
   __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -348,6 +308,7 @@ PUTCHAR_PROTOTYPE
   HAL_UART_Transmit(&hlpuart1, (uint8_t *)&ch, 1, 0xFFFF);
   return ch;
 }
+
 /* USER CODE END 4 */
 
 /**

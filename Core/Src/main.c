@@ -443,20 +443,6 @@ void LCD_DrawPen(int x, int y, uint16_t color) {
     LCD_WriteData(buf, sizeof(buf));
 }
 
-void LCD_DrawLine(int x0, int y0, int x1, int y1, uint16_t color) {
-    int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-    int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
-    int err = dx + dy, e2;
-
-    while (1) {
-        LCD_DrawPen(x0, y0, color);
-        if (x0 == x1 && y0 == y1) break;
-        e2 = 2 * err;
-        if (e2 >= dy) { err += dy; x0 += sx; }
-        if (e2 <= dx) { err += dx; y0 += sy; }
-    }
-}
-
 uint16_t Touch_Read(uint8_t cmd) {
     uint8_t tx_data[3] = {cmd, 0x00, 0x00};
     uint8_t rx_data[3] = {0x00, 0x00, 0x00};
@@ -471,23 +457,21 @@ uint16_t Touch_Read(uint8_t cmd) {
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     if (GPIO_Pin == GPIO_PIN_6) {
+        // 1. Abort if finger is already lifted
+        if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_6) == GPIO_PIN_SET) return;
 
-        if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_6) == GPIO_PIN_SET) {
-            prev_x = -1; // Reset stroke
-            return;
-        }
-
+        // 2. Read Z-axis (Pressure) to ensure valid physical contact
         uint16_t z1 = Touch_Read(0xB0);
         uint16_t z2 = Touch_Read(0xC0);
 
-        if (z1 < 50 || z1 > 4000) {
-            prev_x = -1; // Reset stroke
-            return;
-        }
+        // Z1 approaches 0 when there is no touch.
+        if (z1 < 50 || z1 > 4000) return;
 
+        // 3. Dummy reads to allow multiplexer voltage settling
         Touch_Read(0xD0);
         Touch_Read(0x90);
 
+        // 4. Oversampling/Averaging
         uint32_t sum_x = 0;
         uint32_t sum_y = 0;
         const uint8_t NUM_SAMPLES = 10;
@@ -500,35 +484,34 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
         uint16_t raw_x = sum_x / NUM_SAMPLES;
         uint16_t raw_y = sum_y / NUM_SAMPLES;
 
-        if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_6) == GPIO_PIN_SET) {
-            prev_x = -1; // Reset stroke
+        // 5. Abort if finger was lifted during the sampling loop
+        if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_6) == GPIO_PIN_SET) return;
+
+        // 6. Ignore garbage noise
+        if (raw_x < 50 || raw_x > 4000 || raw_y < 50 || raw_y > 4000) {
             return;
         }
 
-        if (raw_x < 50 || raw_x > 4000 || raw_y < 50 || raw_y > 4000) return;
-
+        // 7. Clamp raw values
         if (raw_x < 200) raw_x = 200;
         if (raw_x > 1811) raw_x = 1811;
         if (raw_y < 200) raw_y = 200;
         if (raw_y > 1920) raw_y = 1920;
 
+        // 8. Map directly to pixels
         int pixel_x = ((int)raw_x - 200) * 320 / (1811 - 200);
         int pixel_y = ((int)raw_y - 200) * 480 / (1920 - 200);
+
+        // Flip Y-axis (Invert over X-axis)
         pixel_y = 479 - pixel_y;
 
+        // 9. Final safety clamp
         if (pixel_x < 0) pixel_x = 0; if (pixel_x > 319) pixel_x = 319;
         if (pixel_y < 0) pixel_y = 0; if (pixel_y > 479) pixel_y = 479;
 
-        // Draw line connecting the points
-        if (prev_x != -1) {
-            LCD_DrawLine(prev_x, prev_y, pixel_x, pixel_y, 0xF800);
-        } else {
-            LCD_DrawPen(pixel_x, pixel_y, 0xF800);
-        }
-
-        // Save current point for the next interrupt
-        prev_x = pixel_x;
-        prev_y = pixel_y;
+        LCD_DrawPen(pixel_x, pixel_y, 0xF800);
+        // Print calculated pixels, not raw values
+       // printf("Pix X: %d, Pix Y: %d\r\n", pixel_x, pixel_y);
     }
 }
 

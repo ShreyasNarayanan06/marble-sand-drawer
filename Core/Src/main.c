@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,7 +43,7 @@
 SPI_HandleTypeDef hspi1;
 
 /* USER CODE BEGIN PV */
-
+int prev_x, prev_y = -1; // no prev location on start up for IR light
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -53,12 +53,11 @@ static void MX_SPI1_Init(void);
 
 /* USER CODE BEGIN PFP */
 void LCD_WriteCommand(uint8_t cmd);
-void LCD_WriteData(uint8_t data, int size);
+void LCD_WriteData(uint8_t *data, int size);
+void LCD_WriteByte(uint8_t data);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
-
 /* USER CODE BEGIN 0 */
 
 // Sends a command byte to the ST7796S
@@ -66,13 +65,13 @@ void LCD_WriteData(uint8_t data, int size);
 void LCD_ClearScreen() {
     // 1. Set column address (0 to 319)
     LCD_WriteCommand(0x2A);
-    LCD_WriteData(0x00, 1); LCD_WriteData(0x00, 1); // start = 0
-    LCD_WriteData(0x01, 1); LCD_WriteData(0x3F, 1); // end = 319
+    LCD_WriteByte(0x00); LCD_WriteByte(0x00); // start = 0
+    LCD_WriteByte(0x01); LCD_WriteByte(0x3F); // end = 319
 
     // 2. Set row address (0 to 479)
     LCD_WriteCommand(0x2B);
-    LCD_WriteData(0x00, 1); LCD_WriteData(0x00, 1); // start = 0
-    LCD_WriteData(0x01, 1); LCD_WriteData(0xDF, 1); // end = 479
+    LCD_WriteByte(0x00); LCD_WriteByte(0x00); // start = 0
+    LCD_WriteByte(0x01); LCD_WriteByte(0xDF); // end = 479
 
     // 3. Send Memory Write command
     LCD_WriteCommand(0x2C);
@@ -81,6 +80,40 @@ void LCD_ClearScreen() {
     uint8_t buf[640];
     for (int i = 0; i < 640; i++) {
         buf[i] = 0xFF; // 0xFFFF is White in RGB565
+    }
+
+    // 5. Prepare pins for raw data transmission
+    HAL_GPIO_WritePin(DC_RS_GPIO_Port, DC_RS_Pin, GPIO_PIN_SET);     // DC HIGH for Data
+    HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_RESET); // CS LOW to select screen
+
+    // 6. Transmit the 640-byte row 480 times to cover the whole screen
+    for(uint32_t row = 0; row < 480; row++) {
+        HAL_SPI_Transmit(&hspi1, buf, 640, HAL_MAX_DELAY);
+    }
+
+    // 7. Deselect the screen when finished
+    HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_SET);
+}
+
+// for debugging
+void LCD_BlackScreen() {
+    // 1. Set column address (0 to 319)
+    LCD_WriteCommand(0x2A);
+    LCD_WriteByte(0x00); LCD_WriteByte(0x00); // start = 0
+    LCD_WriteByte(0x01); LCD_WriteByte(0x3F); // end = 319
+
+    // 2. Set row address (0 to 479)
+    LCD_WriteCommand(0x2B);
+    LCD_WriteByte(0x00); LCD_WriteByte(0x00); // start = 0
+    LCD_WriteByte(0x01); LCD_WriteByte(0xDF); // end = 479
+
+    // 3. Send Memory Write command
+    LCD_WriteCommand(0x2C);
+
+    // 4. Create a safe-sized buffer for exactly ONE row (320 pixels * 2 bytes = 640 bytes)
+    uint8_t buf[640];
+    for (int i = 0; i < 640; i++) {
+        buf[i] = 0x00; // 0x000 is Black in RGB565
     }
 
     // 5. Prepare pins for raw data transmission
@@ -108,13 +141,17 @@ void LCD_WriteCommand(uint8_t cmd) {
 }
 
 // Sends a data byte to the ST7796S
-void LCD_WriteData(uint8_t data, int size) {
-    // dc high for data
+void LCD_WriteData(uint8_t *data, int size) {
+	// dc high for data
     HAL_GPIO_WritePin(DC_RS_GPIO_Port, DC_RS_Pin, GPIO_PIN_SET);
     // select display with CS
     HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_RESET);
-    HAL_SPI_Transmit(&hspi1, &data, size, HAL_MAX_DELAY);
+    HAL_SPI_Transmit(&hspi1, data, size, HAL_MAX_DELAY);
     HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_SET);
+}
+
+void LCD_WriteByte(uint8_t data) {
+    LCD_WriteData(&data, 1);
 }
 
 void LCD_DrawDot(int x, int y) {
@@ -123,41 +160,253 @@ void LCD_DrawDot(int x, int y) {
 	int tempx = (int)((x/100.0) * 320);
 	int tempy = (int)((y/100.0) * 480);
 
-	uint8_t lower_x_left = (tempx - 5) & 0xFF;
-	uint8_t upper_x_left = (tempx - 5) >> 8;
+	int r = 5;
 
-	uint8_t lower_x_right = (tempx + 5) & 0xFF;
-	uint8_t upper_x_right = (tempx + 5) >> 8;
+	if (tempx < r) tempx = r;
+	if (tempx > (319 - r)) tempx = 319 - r;
 
-	uint8_t lower_y_down = (tempy - 5) & 0xFF;
-	uint8_t upper_y_down = (tempy - 5) >> 8;
+	if (tempy < r) tempy = r;
+	if (tempy > (479 - r)) tempy = 479 - r;
 
-	uint8_t lower_y_up = (tempy + 5) & 0xFF;
-	uint8_t upper_y_up = (tempy + 5) >> 8;
+	uint8_t lower_x_left = (tempx - r) & 0xFF;
+	uint8_t upper_x_left = (tempx - r) >> 8;
+
+	uint8_t lower_x_right = (tempx + r) & 0xFF;
+	uint8_t upper_x_right = (tempx + r) >> 8;
+
+	uint8_t lower_y_down = (tempy - r) & 0xFF;
+	uint8_t upper_y_down = (tempy - r) >> 8;
+
+	uint8_t lower_y_up = (tempy + r) & 0xFF;
+	uint8_t upper_y_up = (tempy + r) >> 8;
 
     LCD_WriteCommand(0x2A);
-    LCD_WriteData(upper_x_left, 1); LCD_WriteData(lower_x_left, 1); // start = x - 5
-    LCD_WriteData(upper_x_right, 1); LCD_WriteData(lower_x_right, 1); // end = x + 5
+    LCD_WriteByte(upper_x_left); LCD_WriteByte(lower_x_left); // start = x - r
+    LCD_WriteByte(upper_x_right); LCD_WriteByte(lower_x_right); // end = x + r
 
     // 2. Set row address (0 to 479)
     LCD_WriteCommand(0x2B);
-    LCD_WriteData(upper_y_down, 1); LCD_WriteData(lower_y_down, 1); // start = y - 5
-    LCD_WriteData(upper_y_up, 1); LCD_WriteData(lower_y_up, 1); // end = y + 5
+    LCD_WriteByte(upper_y_down); LCD_WriteByte(lower_y_down); // start = y - r
+    LCD_WriteByte(upper_y_up); LCD_WriteByte(lower_y_up); // end = y + r
 
     // 3. Send Memory Write command
     LCD_WriteCommand(0x2C);
 
-    // 4. Create a safe-sized buffer for exactly ONE row (320 pixels * 2 bytes = 640 bytes)
-    uint8_t buf[242]; //
-    for (int i = 0; i < 242; i++) {
+    // 4. Create a safe-sized buffer
+    int size = (2 * r + 1) * (2 * r + 1) * 2;
+    uint8_t buf[size]; //
+    for (int i = 0; i < size; i++) {
         buf[i] = 0x00; // 0x00 is Black in RGB565
     }
 
-    LCD_WriteData(&buf, 242);
+    LCD_WriteData(buf, size);
 
 }
 
-/* USER CODE END 0 */
+void LCD_DrawingPointer(int x, int y) {
+    int r = 3; // radius of pointer square
+    int size = (2*r + 1); // width/height of square
+    uint8_t buf[(2*r+1)*(2*r+1)*2]; // RGB565 buffer
+
+    // Erase previous pointer (we leave the content underneath intact, so skip if first)
+    if (prev_x >= 0 && prev_y >= 0) {
+        // In this case, we just "redraw" the previous content as black
+        for (int i = 0; i < sizeof(buf); i++) buf[i] = 0x00; // black
+
+        int x_start = prev_x - r;
+        int y_start = prev_y - r;
+        if (x_start < 0) x_start = 0;
+        if (y_start < 0) y_start = 0;
+        if (x_start + size > 319) x_start = 319 - size;
+        if (y_start + size > 479) y_start = 479 - size;
+
+        LCD_WriteCommand(0x2A);
+        LCD_WriteByte(x_start >> 8); LCD_WriteByte(x_start & 0xFF);
+        LCD_WriteByte((x_start + size - 1) >> 8); LCD_WriteByte((x_start + size - 1) & 0xFF);
+
+        LCD_WriteCommand(0x2B);
+        LCD_WriteByte(y_start >> 8); LCD_WriteByte(y_start & 0xFF);
+        LCD_WriteByte((y_start + size - 1) >> 8); LCD_WriteByte((y_start + size - 1) & 0xFF);
+
+        LCD_WriteCommand(0x2C);
+        LCD_WriteData(buf, sizeof(buf));
+    }
+
+    // Draw new pointer as black
+    for (int i = 0; i < sizeof(buf); i++) buf[i] = 0x00; // black
+    int x_start = x - r;
+    int y_start = y - r;
+    if (x_start < 0) x_start = 0;
+    if (y_start < 0) y_start = 0;
+    if (x_start + size > 319) x_start = 319 - size;
+    if (y_start + size > 479) y_start = 479 - size;
+
+    LCD_WriteCommand(0x2A);
+    LCD_WriteByte(x_start >> 8); LCD_WriteByte(x_start & 0xFF);
+    LCD_WriteByte((x_start + size - 1) >> 8); LCD_WriteByte((x_start + size - 1) & 0xFF);
+
+    LCD_WriteCommand(0x2B);
+    LCD_WriteByte(y_start >> 8); LCD_WriteByte(y_start & 0xFF);
+    LCD_WriteByte((y_start + size - 1) >> 8); LCD_WriteByte((y_start + size - 1) & 0xFF);
+
+    LCD_WriteCommand(0x2C);
+    LCD_WriteData(buf, sizeof(buf));
+
+    // Save position
+    prev_x = x;
+    prev_y = y;
+}
+
+void LCD_DrawCircle(int cx, int cy, int r, uint16_t color) {
+    for (int y = -r; y <= r; y++) {
+        for (int x = -r; x <= r; x++) {
+            if (x*x + y*y <= r*r) {
+                LCD_DrawPixel(cx + x, cy + y, color);
+            }
+        }
+    }
+}
+
+// Draw a circular cursor at (x, y) with radius r
+void LCD_DrawingPointerCircle(int x, int y, int r) {
+    static int prev_x = -1, prev_y = -1;
+    static int prev_r = 3;
+
+    int size = 2 * r + 1;
+    uint8_t buf[size * size * 2]; // RGB565 buffer
+
+    // Fill buffer with black pixels (0x0000)
+    for (int i = 0; i < size * size; i++) {
+        buf[2*i] = 0x00;      // upper byte
+        buf[2*i+1] = 0x00;    // lower byte
+    }
+
+    // Erase previous pointer by drawing black over it
+    if (prev_x >= 0 && prev_y >= 0) {
+        int x_start = prev_x - prev_r;
+        int y_start = prev_y - prev_r;
+        if (x_start < 0) x_start = 0;
+        if (y_start < 0) y_start = 0;
+        if (x_start + size > 319) x_start = 319 - size;
+        if (y_start + size > 479) y_start = 479 - size;
+
+        LCD_WriteCommand(0x2A);
+        LCD_WriteByte(x_start >> 8); LCD_WriteByte(x_start & 0xFF);
+        LCD_WriteByte((x_start + size - 1) >> 8); LCD_WriteByte((x_start + size - 1) & 0xFF);
+
+        LCD_WriteCommand(0x2B);
+        LCD_WriteByte(y_start >> 8); LCD_WriteByte(y_start & 0xFF);
+        LCD_WriteByte((y_start + size - 1) >> 8); LCD_WriteByte((y_start + size - 1) & 0xFF);
+
+        LCD_WriteCommand(0x2C);
+        LCD_WriteData(buf, sizeof(buf));
+    }
+
+    // Draw new pointer (black circle) in the buffer
+    // In this case, the buffer is already all black, so no need to fill again
+
+    int x_start = x - r;
+    int y_start = y - r;
+    if (x_start < 0) x_start = 0;
+    if (y_start < 0) y_start = 0;
+    if (x_start + size > 319) x_start = 319 - size;
+    if (y_start + size > 479) y_start = 479 - size;
+
+    LCD_WriteCommand(0x2A);
+    LCD_WriteByte(x_start >> 8); LCD_WriteByte(x_start & 0xFF);
+    LCD_WriteByte((x_start + size - 1) >> 8); LCD_WriteByte((x_start + size - 1) & 0xFF);
+
+    LCD_WriteCommand(0x2B);
+    LCD_WriteByte(y_start >> 8); LCD_WriteByte(y_start & 0xFF);
+    LCD_WriteByte((y_start + size - 1) >> 8); LCD_WriteByte((y_start + size - 1) & 0xFF);
+
+    LCD_WriteCommand(0x2C);
+    LCD_WriteData(buf, sizeof(buf));
+
+    // Save previous position
+    prev_x = x;
+    prev_y = y;
+    prev_r = r;
+}
+
+// Draw a circular pointer like a laser pointer
+void LCD_IRPointerCircle(int x, int y, int r) {
+    static int prev_x = -1, prev_y = -1;
+    static int prev_r = 3;
+
+    int size = 2 * r + 1;
+    uint8_t buf[size * size * 2]; // RGB565 buffer
+
+    // Fill buffer with white pixels (0xFFFF) to erase previous pointer
+    for (int i = 0; i < size * size; i++) {
+        buf[2*i] = 0xFF;      // upper byte
+        buf[2*i+1] = 0xFF;    // lower byte
+    }
+
+    // Erase previous pointer by drawing white over it
+    if (prev_x >= 0 && prev_y >= 0) {
+        int x_start = prev_x - prev_r;
+        int y_start = prev_y - prev_r;
+        if (x_start < 0) x_start = 0;
+        if (y_start < 0) y_start = 0;
+        if (x_start + size > 319) x_start = 319 - size;
+        if (y_start + size > 479) y_start = 479 - size;
+
+        LCD_WriteCommand(0x2A);
+        LCD_WriteByte(x_start >> 8); LCD_WriteByte(x_start & 0xFF);
+        LCD_WriteByte((x_start + size - 1) >> 8); LCD_WriteByte((x_start + size - 1) & 0xFF);
+
+        LCD_WriteCommand(0x2B);
+        LCD_WriteByte(y_start >> 8); LCD_WriteByte(y_start & 0xFF);
+        LCD_WriteByte((y_start + size - 1) >> 8); LCD_WriteByte((y_start + size - 1) & 0xFF);
+
+        LCD_WriteCommand(0x2C);
+        LCD_WriteData(buf, sizeof(buf));
+    }
+
+    // Draw new pointer as black circle
+    for (int i = 0; i < size * size; i++) {
+        buf[2*i] = 0x00;      // upper byte
+        buf[2*i+1] = 0x00;    // lower byte
+    }
+
+    int x_start = x - r;
+    int y_start = y - r;
+    if (x_start < 0) x_start = 0;
+    if (y_start < 0) y_start = 0;
+    if (x_start + size > 319) x_start = 319 - size;
+    if (y_start + size > 479) y_start = 479 - size;
+
+    LCD_WriteCommand(0x2A);
+    LCD_WriteByte(x_start >> 8); LCD_WriteByte(x_start & 0xFF);
+    LCD_WriteByte((x_start + size - 1) >> 8); LCD_WriteByte((x_start + size - 1) & 0xFF);
+
+    LCD_WriteCommand(0x2B);
+    LCD_WriteByte(y_start >> 8); LCD_WriteByte(y_start & 0xFF);
+    LCD_WriteByte((y_start + size - 1) >> 8); LCD_WriteByte((y_start + size - 1) & 0xFF);
+
+    LCD_WriteCommand(0x2C);
+    LCD_WriteData(buf, sizeof(buf));
+
+    // Save current pointer position
+    prev_x = x;
+    prev_y = y;
+    prev_r = r;
+}
+
+// Draw a single pixel (RGB565) on the LCD
+void LCD_DrawPixel(int x, int y, uint16_t color) {
+    if (x < 0 || x >= 320 || y < 0 || y >= 480) return; // bounds check
+    uint8_t data[2] = { color >> 8, color & 0xFF };
+    LCD_WriteCommand(0x2A);
+    LCD_WriteByte(x >> 8); LCD_WriteByte(x & 0xFF); // col start
+    LCD_WriteByte(x >> 8); LCD_WriteByte(x & 0xFF); // col end
+    LCD_WriteCommand(0x2B);
+    LCD_WriteByte(y >> 8); LCD_WriteByte(y & 0xFF); // row start
+    LCD_WriteByte(y >> 8); LCD_WriteByte(y & 0xFF); // row end
+    LCD_WriteCommand(0x2C);
+    LCD_WriteData(data, 2);
+}
 
 /* USER CODE END 0 */
 
@@ -205,10 +454,10 @@ int main(void)
   HAL_Delay(120);
 
   LCD_WriteCommand(0x3A);//pixel format
-  LCD_WriteData(0x55, 1); // 0x55 is 16 bit color
+  LCD_WriteByte(0x55); // 0x55 is 16 bit color
 
   LCD_WriteCommand(0x36); // Memory Data Access Control (Orientation)
-  LCD_WriteData(0x48, 1); //default
+  LCD_WriteByte(0x48); //default
 
   LCD_WriteCommand(0x29); // Display ON
   HAL_Delay(10);
@@ -216,12 +465,150 @@ int main(void)
   //SCREEN IS 320 by 480 PIXELS (resolution)
 
   //memory write command
-
-  LCD_ClearScreen();
-
+  LCD_BlackScreen(); // Default begin black screen
   HAL_Delay(100);
 
-  LCD_DrawDot(50, 50);
+  LCD_ClearScreen(); // Default begin clear screen
+  HAL_Delay(100);
+
+
+//  // DRAWING CIRCLE
+  int centerX = 160; // screen center X
+  int centerY = 240; // screen center Y
+  int radius = 3;    // radius
+  int pathRadius = 100; // radius of circular path
+
+  for (int angle = 0; angle < 360; angle++) {
+      // Convert angle to radians
+      float rad = angle * 3.14159f / 180.0f;
+
+      // Compute new pointer position
+      int x = centerX + (int)(pathRadius * cosf(rad));
+      int y = centerY + (int)(pathRadius * sinf(rad));
+
+      // Draw the pointer (erases previous automatically)
+      LCD_DrawingPointerCircle(x, y, radius);
+
+      HAL_Delay(10); // adjust speed
+  }
+
+  LCD_ClearScreen();
+  HAL_Delay(100);
+
+  for (int angle = 0; angle < 360; angle++) {
+        // Convert angle to radians
+        float rad = angle * 3.14159f / 180.0f;
+
+        // Compute new pointer position
+        int x = centerX + (int)(pathRadius * cosf(rad));
+        int y = centerY + (int)(pathRadius * sinf(rad));
+
+        // Draw the pointer (erases previous automatically)
+        LCD_IRPointerCircle(x, y, radius);
+
+        HAL_Delay(10); // adjust speed
+    }
+
+  LCD_ClearScreen();
+  HAL_Delay(100);
+
+  // SQUARE TEST
+  int squareSize = 50; // Side length of square
+  int startX = centerX - squareSize / 2;
+  int startY = centerY - squareSize / 2;
+
+  // Draw Square (Move along the edges step by step)
+  // Start at top-left corner
+  for (int i = 0; i < squareSize; i++) {
+	  // Top side: Draw right
+	  LCD_DrawingPointerCircle(startX + i, startY, radius);
+	  HAL_Delay(5);
+  }
+  for (int i = 0; i < squareSize; i++) {
+	  // Right side: Draw down
+	  LCD_DrawingPointerCircle(startX + squareSize - 1, startY + i, radius);
+	  HAL_Delay(5);
+  }
+  for (int i = 0; i < squareSize; i++) {
+	  // Bottom side: Draw left
+	  LCD_DrawingPointerCircle(startX + squareSize - 1 - i, startY + squareSize - 1, radius);
+	  HAL_Delay(5);
+  }
+  for (int i = 0; i < squareSize; i++) {
+	  // Left side: Draw up
+	  LCD_DrawingPointerCircle(startX, startY + squareSize - 1 - i, radius);
+	  HAL_Delay(5);
+  }
+
+  HAL_Delay(500); // pause to view the square
+
+  LCD_ClearScreen(); // Default begin clear screen
+  HAL_Delay(100);
+
+  // Draw Square (Move along the edges step by step)
+  // Start at top-left corner
+  for (int i = 0; i < squareSize; i++) {
+  // Top side: Draw right
+	  LCD_IRPointerCircle(startX + i, startY, radius);
+	  HAL_Delay(5);
+  }
+  for (int i = 0; i < squareSize; i++) {
+  // Right side: Draw down
+	LCD_IRPointerCircle(startX + squareSize - 1, startY + i, radius);
+	HAL_Delay(5);
+  }
+  for (int i = 0; i < squareSize; i++) {
+	  // Bottom side: Draw left
+	  LCD_IRPointerCircle(startX + squareSize - 1 - i, startY + squareSize - 1, radius);
+	  HAL_Delay(5);
+  }
+  for (int i = 0; i < squareSize; i++) {
+	// Left side: Draw up
+	LCD_IRPointerCircle(startX, startY + squareSize - 1 - i, radius);
+	HAL_Delay(5);
+  }
+
+    HAL_Delay(500); // pause to view the square
+
+    LCD_ClearScreen(); // Default begin clear screen
+    HAL_Delay(100);
+
+  // BLOCK M TEST
+  int triangleHeight = 100;
+  int triangleBase = 100;
+  int triangleX = centerX - triangleBase / 2;
+
+  for (int i = triangleHeight; i >= 0; i--) {
+	  int x = triangleX;
+	  int y = centerY - i;
+	  LCD_DrawingPointerCircle(x, y, radius);
+	  HAL_Delay(5);
+  }
+
+  for (int i = 0; i <= triangleHeight / 2; i++) {
+	  int x = triangleX + i;
+	  int y = centerY - i;
+	  LCD_DrawingPointerCircle(x, y, radius);
+	  HAL_Delay(5);
+  }
+
+  for (int i = triangleHeight / 2; i >= 0; i--) {
+	  int x = triangleX + triangleBase - i;
+	  int y = centerY - i;
+	  LCD_DrawingPointerCircle(x, y, radius);
+	  HAL_Delay(5);
+  }
+
+  for (int i = 0; i < triangleHeight; i++) {
+	  int x = triangleX + triangleHeight;
+	  int y = centerY - i;
+	  LCD_DrawingPointerCircle(x, y, radius);
+	  HAL_Delay(5);
+  }
+
+  HAL_Delay(500);
+
+  // LCD_ClearScreen(); // Default begin clear screen
 
 //  for(uint32_t i = 0; i < (480*320); i++) { // can use new WriteData func, no need for for loop
 //

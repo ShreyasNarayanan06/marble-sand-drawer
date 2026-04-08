@@ -38,6 +38,8 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define percentDist(p) ((p) * 5.03238)
+
+#define percentIR(p) (uint16_t)(((uint32_t)(p) * 100) / 1023)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -64,7 +66,9 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-volatile uint8_t manual_mode = 1;
+volatile uint8_t manual_mode = 0;
+volatile uint8_t ir_mode = 1;
+
 
 /* USER CODE END 0 */
 
@@ -102,8 +106,9 @@ int main(void)
   MX_TIM4_Init();
   MX_ADC1_Init();
   MX_LPUART1_UART_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  JoyCal joy = joystick_calibrate();
+  //JoyCal joy = joystick_calibrate();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -116,17 +121,67 @@ int main(void)
 //    };
 
   float x_out, y_out, mag, angle;
+  uint8_t raw[4];
+
+  if (ir_mode) Gantry_Home();
+
 
   while (1)
   {
 	  if(manual_mode) {
 		  int rawX = getX();
 		  int rawY = getY();
-		  joystick_correct(&joy, rawX, rawY, &x_out, &y_out, &mag, &angle);
+		  //joystick_correct(&joy, rawX, rawY, &x_out, &y_out, &mag, &angle);
 		  joyMove(x_out, y_out);
 		  HAL_Delay(20);
-	  } else {
-		  printf("auto mode");
+	  }
+	  else if (ir_mode) {
+		  uint8_t start = 0;
+		      HAL_StatusTypeDef status;
+
+		       status = HAL_UART_Receive(&huart1, &start, 1, 1000);
+		       if (status != HAL_OK)
+		       {
+		           printf("Timeout or RX fail waiting for start\r\n");
+		           continue;
+		       }
+
+
+		       if (start != 0xAA)
+		       {
+		           continue;
+		       }
+
+		       uint8_t raw[4] = {0};
+		       status = HAL_UART_Receive(&huart1, raw, 4, 1);
+		       if (status != HAL_OK)
+		       {
+		           printf("Payload RX fail\r\n");
+		           continue;
+		       }
+
+		       uint16_t x = ((uint16_t)raw[0] << 8) | raw[1];
+		       uint16_t y = ((uint16_t)raw[2] << 8) | raw[3];
+
+		       uint16_t irx = percentIR(x);
+		       uint16_t iry = percentIR(y);
+
+		       printf("raw = %02X %02X %02X %02X | x = %u, y = %u\r\n",
+		              raw[0], raw[1], raw[2], raw[3], irx, iry);
+
+		       if (irx == 100 && iry == 100) {
+		    	   continue;
+		       }
+
+		       else {
+		    	  lineMove(percentDist(irx), percentDist(iry), 100);
+		       }
+
+		       HAL_Delay(10);
+	  }
+
+	  else {
+		  printf("auto mode\r\n");
 		  Gantry_Home();
 		  procCSV();
 		  manual_mode = 1;
@@ -137,6 +192,9 @@ int main(void)
   }
   /* USER CODE END 3 */
 }
+
+
+
 
 /**
   * @brief System Clock Configuration

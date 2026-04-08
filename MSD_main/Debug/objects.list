@@ -1,6 +1,7 @@
 "./Core/Src/adc.o"
 "./Core/Src/gmove.o"
 "./Core/Src/gpio.o"
+"./Core/Src/irled.o"
 "./Core/Src/joystick.o"
 "./Core/Src/main.o"
 "./Core/Src/path_data.o"

@@ -540,11 +540,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
         	LCD_ClearScreen(); // Default begin clear screen
         	LCD_DrawBorder();
+        	printf("CLEAR_LOG\n\r");
         	return;
         }
         if (((0 <= pixel_x) && (pixel_x < 160)) && ((40 <= pixel_y) && (pixel_y< 120))) {
         	//submit button selected
-        	LCD_CreateCSV();
+        	printf("SAVE_FILE\n\r");
         	return;
         }
 
@@ -553,7 +554,15 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
         int adjx = 319 - pixel_x;
         int adjy = pixel_y;
 
-        printf("%d,%d\n\r", adjx, adjy);
+        int gantryx = (adjx/320.0)*100;
+        int gantryy = ((adjy-120.0)/320.0)*100;
+
+        if (gantryx > 100) return;
+        if (gantryy > 100) return;
+        if (gantryx < 0) return;
+        if (gantryy < 0) return;
+
+        printf("%d,%d\n\r", gantryx, gantryy);
     }
 }
 

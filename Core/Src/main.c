@@ -455,6 +455,30 @@ uint16_t Touch_Read(uint8_t cmd) {
     return ((rx_data[1] << 8) | rx_data[2]) >> 4;
 }
 
+void LCD_DrawBorder(void) {
+    uint16_t black = 0x0000; // RGB565 for Black
+
+    // 1. Draw Top and Bottom edges (sweep across X)
+    for (int x = 0; x < 320; x++) {
+        LCD_DrawPen(x, 120, black);       // Top edge
+        LCD_DrawPen(x, 440, black);     // Bottom edge
+    }
+
+    // 2. Draw Left and Right edges (sweep across Y)
+    for (int y = 120; y < 440; y++) {
+        LCD_DrawPen(0, y, black);       // Left edge
+        LCD_DrawPen(319, y, black);     // Right edge
+    }
+
+    for (int y = 60; y < 120; y++) {
+        LCD_DrawPen(160, y, black);
+    }
+
+    for (int x = 0; x < 320; x++) {
+        LCD_DrawPen(x, 60, black);
+    }
+}
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     if (GPIO_Pin == GPIO_PIN_6) {
         // 1. Abort if finger is already lifted
@@ -509,9 +533,27 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
         if (pixel_x < 0) pixel_x = 0; if (pixel_x > 319) pixel_x = 319;
         if (pixel_y < 0) pixel_y = 0; if (pixel_y > 479) pixel_y = 479;
 
+        	//NOTE X DIRECTION IS FLIPPED SO LEFT SECTION IS 160 to 320
+        if (((160 <= pixel_x) && (pixel_x < 320)) && ((40 <= pixel_y) && (pixel_y< 120))) {
+        	//clear button selected
+        	LCD_BlackScreen(); // Default begin black screen
+
+        	LCD_ClearScreen(); // Default begin clear screen
+        	LCD_DrawBorder();
+        	return;
+        }
+        if (((0 <= pixel_x) && (pixel_x < 160)) && ((40 <= pixel_y) && (pixel_y< 120))) {
+        	//submit button selected
+        	LCD_CreateCSV();
+        	return;
+        }
+
         LCD_DrawPen(pixel_x, pixel_y, 0xF800);
         // Print calculated pixels, not raw values
-       // printf("Pix X: %d, Pix Y: %d\r\n", pixel_x, pixel_y);
+        int adjx = 319 - pixel_x;
+        int adjy = pixel_y;
+
+        printf("%d,%d\n\r", adjx, adjy);
     }
 }
 
@@ -578,6 +620,7 @@ int main(void)
   HAL_Delay(100);
 
   LCD_ClearScreen(); // Default begin clear screen
+  LCD_DrawBorder();
   HAL_Delay(100);
 
 
@@ -756,6 +799,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+
   }
   /* USER CODE END 3 */
 }

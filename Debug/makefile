@@ -34,34 +34,34 @@ $(wildcard ../makefile.init) \
 $(wildcard ../makefile.targets) \
 
 
-BUILD_ARTIFACT_NAME := marble-sand-drawer
+BUILD_ARTIFACT_NAME := newlcd_test1
 BUILD_ARTIFACT_EXTENSION := elf
 BUILD_ARTIFACT_PREFIX :=
 BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ARTIFACT_EXTENSION),.$(BUILD_ARTIFACT_EXTENSION),)
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXECUTABLES += \
-marble-sand-drawer.elf \
+newlcd_test1.elf \
 
 MAP_FILES += \
-marble-sand-drawer.map \
+newlcd_test1.map \
 
 SIZE_OUTPUT += \
 default.size.stdout \
 
 OBJDUMP_LIST += \
-marble-sand-drawer.list \
+newlcd_test1.list \
 
 
 # All Target
 all: main-build
 
 # Main-build Target
-main-build: marble-sand-drawer.elf secondary-outputs
+main-build: newlcd_test1.elf secondary-outputs
 
 # Tool invocations
-marble-sand-drawer.elf marble-sand-drawer.map: $(OBJS) $(USER_OBJS) C:\Users\nshreyas\Desktop\marble-sand-drawer\STM32L4R5ZITXP_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "marble-sand-drawer.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\nshreyas\Desktop\marble-sand-drawer\STM32L4R5ZITXP_FLASH.ld" --specs=nosys.specs -Wl,-Map="marble-sand-drawer.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
+newlcd_test1.elf newlcd_test1.map: $(OBJS) $(USER_OBJS) C:\Users\menonsid\Documents\lcd_testing\marble-sand-drawer\STM32L4R5ZITXP_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "newlcd_test1.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\menonsid\Documents\lcd_testing\marble-sand-drawer\STM32L4R5ZITXP_FLASH.ld" --specs=nosys.specs -Wl,-Map="newlcd_test1.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -70,14 +70,14 @@ default.size.stdout: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-marble-sand-drawer.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "marble-sand-drawer.list"
+newlcd_test1.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "newlcd_test1.list"
 	@echo 'Finished building: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) default.size.stdout marble-sand-drawer.elf marble-sand-drawer.list marble-sand-drawer.map
+	-$(RM) default.size.stdout newlcd_test1.elf newlcd_test1.list newlcd_test1.map
 	-@echo ' '
 
 secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)

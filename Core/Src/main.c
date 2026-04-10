@@ -42,12 +42,19 @@
 
 /* Private variables ---------------------------------------------------------*/
 UART_HandleTypeDef hlpuart1;
+UART_HandleTypeDef huart1;
 
 SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi2;
 
 /* USER CODE BEGIN PV */
 int prev_x, prev_y = -1; // no prev location on start up for IR light
+volatile uint8_t touch_flag = 0; // NEW: Tells main loop a touch happened
+int drawmode = 1;
+int irmode = 0;
+
+volatile int last_pixel_x = -1;
+volatile int last_pixel_y = -1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -56,6 +63,7 @@ static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_LPUART1_UART_Init(void);
+static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 void LCD_WriteCommand(uint8_t cmd);
 void LCD_WriteData(uint8_t *data, int size);
@@ -336,7 +344,7 @@ void LCD_DrawingPointerCircle(int x, int y, int r) {
 
 // Draw a circular pointer like a laser pointer
 void LCD_IRPointerCircle(int x, int y, int r) {
-    static int prev_x = -1, prev_y = -1;
+    //static int prev_x = -1, prev_y = -1;
     static int prev_r = 3;
 
     int size = 2 * r + 1;
@@ -349,7 +357,7 @@ void LCD_IRPointerCircle(int x, int y, int r) {
     }
 
     // Erase previous pointer by drawing white over it
-    if (prev_x >= 0 && prev_y >= 0) {
+    if ((prev_x >= 3) && (prev_x < 316) && (prev_y >= 123) && (prev_y < 437)) {
         int x_start = prev_x - prev_r;
         int y_start = prev_y - prev_r;
         if (x_start < 0) x_start = 0;
@@ -495,18 +503,51 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
         Touch_Read(0xD0);
         Touch_Read(0x90);
 
-        // 4. Oversampling/Averaging
-        uint32_t sum_x = 0;
-        uint32_t sum_y = 0;
-        const uint8_t NUM_SAMPLES = 10;
+        const uint8_t NUM_SAMPLES = 9; // Odd numbers are slightly better for medians
+                uint16_t samples_x[NUM_SAMPLES];
+                uint16_t samples_y[NUM_SAMPLES];
 
-        for (int i = 0; i < NUM_SAMPLES; i++) {
-            sum_x += Touch_Read(0xD0);
-            sum_y += Touch_Read(0x90);
-        }
+                // A. Collect the raw data
+                for (int i = 0; i < NUM_SAMPLES; i++) {
+                    samples_x[i] = Touch_Read(0xD0);
+                    samples_y[i] = Touch_Read(0x90);
+                }
 
-        uint16_t raw_x = sum_x / NUM_SAMPLES;
-        uint16_t raw_y = sum_y / NUM_SAMPLES;
+                // B. Sort X array (Insertion Sort - extremely fast for small N)
+                for (int i = 1; i < NUM_SAMPLES; i++) {
+                    uint16_t key = samples_x[i];
+                    int j = i - 1;
+                    while (j >= 0 && samples_x[j] > key) {
+                        samples_x[j + 1] = samples_x[j];
+                        j = j - 1;
+                    }
+                    samples_x[j + 1] = key;
+                }
+
+                // C. Sort Y array (Sort them independently to destroy independent noise!)
+                for (int i = 1; i < NUM_SAMPLES; i++) {
+                    uint16_t key = samples_y[i];
+                    int j = i - 1;
+                    while (j >= 0 && samples_y[j] > key) {
+                        samples_y[j + 1] = samples_y[j];
+                        j = j - 1;
+                    }
+                    samples_y[j + 1] = key;
+                }
+
+                // D. Average the middle values (Drop the lowest 2 and highest 2)
+                uint32_t sum_x = 0;
+                uint32_t sum_y = 0;
+                const uint8_t TRIM_AMOUNT = 3; // Throw away 2 from top, 2 from bottom
+
+                for (int i = TRIM_AMOUNT; i < (NUM_SAMPLES - TRIM_AMOUNT); i++) {
+                    sum_x += samples_x[i];
+                    sum_y += samples_y[i];
+                }
+
+                // Divide by the remaining samples (9 total - 4 dropped = 5)
+                uint16_t raw_x = sum_x / (NUM_SAMPLES - (2 * TRIM_AMOUNT));
+                uint16_t raw_y = sum_y / (NUM_SAMPLES - (2 * TRIM_AMOUNT));
 
         // 5. Abort if finger was lifted during the sampling loop
         if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_6) == GPIO_PIN_SET) return;
@@ -533,23 +574,49 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
         if (pixel_x < 0) pixel_x = 0; if (pixel_x > 319) pixel_x = 319;
         if (pixel_y < 0) pixel_y = 0; if (pixel_y > 479) pixel_y = 479;
 
+                // ------------------------------------------
+
         	//NOTE X DIRECTION IS FLIPPED SO LEFT SECTION IS 160 to 320
-        if (((160 <= pixel_x) && (pixel_x < 320)) && ((40 <= pixel_y) && (pixel_y< 120))) {
+        if (((160 <= pixel_x) && (pixel_x < 320)) && ((40 <= pixel_y) && (pixel_y< 100))) {
         	//clear button selected
         	LCD_BlackScreen(); // Default begin black screen
 
         	LCD_ClearScreen(); // Default begin clear screen
         	LCD_DrawBorder();
         	printf("CLEAR_LOG\n\r");
+
+        	last_pixel_x = -1;
+        	last_pixel_y = -1;
         	return;
         }
-        if (((0 <= pixel_x) && (pixel_x < 160)) && ((40 <= pixel_y) && (pixel_y< 120))) {
+        if (((0 <= pixel_x) && (pixel_x < 160)) && ((40 <= pixel_y) && (pixel_y< 100))) {
         	//submit button selected
         	printf("SAVE_FILE\n\r");
         	return;
         }
 
-        LCD_DrawPen(pixel_x, pixel_y, 0xF800);
+		const int PIXEL_JUMP_THRESHOLD = 3000; // Maximum allowed pixel jump
+
+		// 1. Accept the very first touch unconditionally to initialize
+		if (last_pixel_x == -1 || last_pixel_y == -1) {
+			last_pixel_x = pixel_x;
+			last_pixel_y = pixel_y;
+		}
+		// 2. For all other touches, enforce the distance limit
+		else {
+			int diff_x = abs(pixel_x - last_pixel_x);
+			int diff_y = abs(pixel_y - last_pixel_y);
+
+			if (diff_x > PIXEL_JUMP_THRESHOLD || diff_y > PIXEL_JUMP_THRESHOLD) {
+				// Jump is too large (phantom dot). Abort!
+				return;
+			}
+
+			// Point is valid, update the tracker
+			last_pixel_x = pixel_x;
+			last_pixel_y = pixel_y;
+		}
+
         // Print calculated pixels, not raw values
         int adjx = 319 - pixel_x;
         int adjy = pixel_y;
@@ -561,8 +628,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
         if (gantryy > 100) return;
         if (gantryx < 0) return;
         if (gantryy < 0) return;
+        LCD_DrawingPointerCircle(pixel_x, pixel_y, 3);
 
-        printf("%d,%d\n\r", gantryx, gantryy);
+
+        printf("%d,%d\n\r", pixel_x, pixel_y);
     }
 }
 
@@ -600,6 +669,7 @@ int main(void)
   MX_SPI1_Init();
   MX_SPI2_Init();
   MX_LPUART1_UART_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   //hardware reset
   HAL_GPIO_WritePin(RESET_GPIO_Port, RESET_Pin, GPIO_PIN_RESET);
@@ -625,177 +695,12 @@ int main(void)
   //SCREEN IS 320 by 480 PIXELS (resolution)
 
   //memory write command
-  LCD_BlackScreen(); // Default begin black screen
+  // LCD_BlackScreen(); // Default begin black screen
   HAL_Delay(100);
 
   LCD_ClearScreen(); // Default begin clear screen
   LCD_DrawBorder();
   HAL_Delay(100);
-
-
-////  // DRAWING CIRCLE
-//  int centerX = 160; // screen center X
-//  int centerY = 240; // screen center Y
-//  int radius = 3;    // radius
-//  int pathRadius = 100; // radius of circular path
-//
-//  for (int angle = 0; angle < 360; angle++) {
-//      // Convert angle to radians
-//      float rad = angle * 3.14159f / 180.0f;
-//
-//      // Compute new pointer position
-//      int x = centerX + (int)(pathRadius * cosf(rad));
-//      int y = centerY + (int)(pathRadius * sinf(rad));
-//
-//      // Draw the pointer (erases previous automatically)
-//      LCD_DrawingPointerCircle(x, y, radius);
-//
-//      HAL_Delay(10); // adjust speed
-//  }
-//
-//  LCD_ClearScreen();
-//  HAL_Delay(100);
-//
-//  for (int angle = 0; angle < 360; angle++) {
-//        // Convert angle to radians
-//        float rad = angle * 3.14159f / 180.0f;
-//
-//        // Compute new pointer position
-//        int x = centerX + (int)(pathRadius * cosf(rad));
-//        int y = centerY + (int)(pathRadius * sinf(rad));
-//
-//        // Draw the pointer (erases previous automatically)
-//        LCD_IRPointerCircle(x, y, radius);
-//
-//        HAL_Delay(10); // adjust speed
-//    }
-//
-//  LCD_ClearScreen();
-//  HAL_Delay(100);
-//
-//  // SQUARE TEST
-//  int squareSize = 50; // Side length of square
-//  int startX = centerX - squareSize / 2;
-//  int startY = centerY - squareSize / 2;
-//
-//  // Draw Square (Move along the edges step by step)
-//  // Start at top-left corner
-//  for (int i = 0; i < squareSize; i++) {
-//	  // Top side: Draw right
-//	  LCD_DrawingPointerCircle(startX + i, startY, radius);
-//	  HAL_Delay(5);
-//  }
-//  for (int i = 0; i < squareSize; i++) {
-//	  // Right side: Draw down
-//	  LCD_DrawingPointerCircle(startX + squareSize - 1, startY + i, radius);
-//	  HAL_Delay(5);
-//  }
-//  for (int i = 0; i < squareSize; i++) {
-//	  // Bottom side: Draw left
-//	  LCD_DrawingPointerCircle(startX + squareSize - 1 - i, startY + squareSize - 1, radius);
-//	  HAL_Delay(5);
-//  }
-//  for (int i = 0; i < squareSize; i++) {
-//	  // Left side: Draw up
-//	  LCD_DrawingPointerCircle(startX, startY + squareSize - 1 - i, radius);
-//	  HAL_Delay(5);
-//  }
-//
-//  HAL_Delay(500); // pause to view the square
-//
-//  LCD_ClearScreen(); // Default begin clear screen
-//  HAL_Delay(100);
-//
-//  // Draw Square (Move along the edges step by step)
-//  // Start at top-left corner
-//  for (int i = 0; i < squareSize; i++) {
-//  // Top side: Draw right
-//	  LCD_IRPointerCircle(startX + i, startY, radius);
-//	  HAL_Delay(5);
-//  }
-//  for (int i = 0; i < squareSize; i++) {
-//  // Right side: Draw down
-//	LCD_IRPointerCircle(startX + squareSize - 1, startY + i, radius);
-//	HAL_Delay(5);
-//  }
-//  for (int i = 0; i < squareSize; i++) {
-//	  // Bottom side: Draw left
-//	  LCD_IRPointerCircle(startX + squareSize - 1 - i, startY + squareSize - 1, radius);
-//	  HAL_Delay(5);
-//  }
-//  for (int i = 0; i < squareSize; i++) {
-//	// Left side: Draw up
-//	LCD_IRPointerCircle(startX, startY + squareSize - 1 - i, radius);
-//	HAL_Delay(5);
-//  }
-//
-//    HAL_Delay(500); // pause to view the square
-//
-//    LCD_ClearScreen(); // Default begin clear screen
-//    HAL_Delay(100);
-//
-//  // BLOCK M TEST
-//  int triangleHeight = 100;
-//  int triangleBase = 100;
-//  int triangleX = centerX - triangleBase / 2;
-//
-//  for (int i = triangleHeight; i >= 0; i--) {
-//	  int x = triangleX;
-//	  int y = centerY - i;
-//	  LCD_DrawingPointerCircle(x, y, radius);
-//	  HAL_Delay(5);
-//  }
-//
-//  for (int i = 0; i <= triangleHeight / 2; i++) {
-//	  int x = triangleX + i;
-//	  int y = centerY - i;
-//	  LCD_DrawingPointerCircle(x, y, radius);
-//	  HAL_Delay(5);
-//  }
-//
-//  for (int i = triangleHeight / 2; i >= 0; i--) {
-//	  int x = triangleX + triangleBase - i;
-//	  int y = centerY - i;
-//	  LCD_DrawingPointerCircle(x, y, radius);
-//	  HAL_Delay(5);
-//  }
-//
-//  for (int i = 0; i < triangleHeight; i++) {
-//	  int x = triangleX + triangleHeight;
-//	  int y = centerY - i;
-//	  LCD_DrawingPointerCircle(x, y, radius);
-//	  HAL_Delay(5);
-//  }
-//
-//  HAL_Delay(500);
-
-  // LCD_ClearScreen(); // Default begin clear screen
-
-//  for(uint32_t i = 0; i < (480*320); i++) { // can use new WriteData func, no need for for loop
-//
-//
-//      LCD_WriteData(0xFF, 1); //upper byte
-//      LCD_WriteData(0xFF, 1); //lower byte
-//  }
-//
-//  //SET COLUMN ADDRESS (from 0 to 319)
-//  LCD_WriteCommand(0x2A);
-//  LCD_WriteData(0x00); LCD_WriteData(0x64); //start = 0
-//  LCD_WriteData(0x00); LCD_WriteData(0x6D); //end = 319
-//
-//  //SET ROW ADDRESS (from 0 to 479)
-//  LCD_WriteCommand(0x2B);
-//  LCD_WriteData(0x00); LCD_WriteData(0x64); // start = 0
-//  LCD_WriteData(0x00); LCD_WriteData(0x6D); // end = 479
-//
-//  //memory write command
-//  LCD_WriteCommand(0x2C);
-//
-//  //send data for every pixel
-//  for(uint32_t i = 0; i < (100); i++) {
-//      LCD_WriteData(0x00); //upper byte
-//      LCD_WriteData(0x00); //lower byte
-//  }
 
   setvbuf(stdout, NULL, _IONBF, 0);
   printf("hello");
@@ -803,13 +708,51 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  LCD_IRPointerCircle(160, 160, 3);
+  HAL_Delay(100);
+  LCD_IRPointerCircle(260, 260, 3);
+  HAL_Delay(100);
+
+  uint8_t raw[4];
   while (1)
   {
+	  uint8_t start = 0;
+	       HAL_StatusTypeDef status;
+
+	       status = HAL_UART_Receive(&huart1, &start, 1, 1000);
+	       if (status != HAL_OK)
+	       {
+	           printf("Timeout or RX fail waiting for start\r\n");
+	           continue;
+	       }
+
+	       if (start != 0xAA && start != 0xAB)
+	       {
+	           continue;
+	       }
+
+	       uint8_t raw[4] = {0};
+	       status = HAL_UART_Receive(&huart1, raw, 4, 1000);
+	       if (status != HAL_OK)
+	       {
+	           printf("Payload RX fail\r\n");
+	           continue;
+	       }
+
+	       uint16_t x = ((uint16_t)raw[0] << 8) | raw[1];
+	       uint16_t y = ((uint16_t)raw[2] << 8) | raw[3];
+
+
+	       printf("raw = %02X %02X %02X %02X | x = %u, y = %u\r\n",
+	              raw[0], raw[1], raw[2], raw[3], x, y);
+	       if (start == 0xAA) // cursor mode
+	       LCD_IRPointerCircle(x, y, 3);
+
+	       else // draw mode
+	       LCD_DrawingPointerCircle(x, y, 3);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
-
   }
   /* USER CODE END 3 */
 }
@@ -903,6 +846,54 @@ static void MX_LPUART1_UART_Init(void)
   /* USER CODE BEGIN LPUART1_Init 2 */
 
   /* USER CODE END LPUART1_Init 2 */
+
+}
+
+/**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart1.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart1, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart1, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_EnableFifoMode(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
 
 }
 
@@ -1030,7 +1021,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : PD6 */
   GPIO_InitStruct.Pin = GPIO_PIN_6;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 

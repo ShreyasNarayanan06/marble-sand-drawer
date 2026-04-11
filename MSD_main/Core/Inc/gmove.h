@@ -24,5 +24,6 @@ void Gantry_Home(void);
 void mMove(uint8_t axis, double target_mm);
 void lineMove(double target_x_mm, double target_y_mm, double speed);
 void procCSV(void);
+void GMove_EXTI_Callback(uint16_t GPIO_Pin);
 
 #endif /* GMOVE_H */

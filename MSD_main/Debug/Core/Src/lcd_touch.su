@@ -1,0 +1,11 @@
+../Core/Src/lcd_touch.c:8:6:LCD_WriteCommand	16	static
+../Core/Src/lcd_touch.c:15:6:LCD_WriteData	16	static
+../Core/Src/lcd_touch.c:22:6:LCD_WriteByte	16	static
+../Core/Src/lcd_touch.c:24:6:LCD_Init	8	static
+../Core/Src/lcd_touch.c:36:6:LCD_ClearScreen	656	static
+../Core/Src/lcd_touch.c:52:6:LCD_BlackScreen	656	static
+../Core/Src/lcd_touch.c:63:6:LCD_DrawPen	80	dynamic
+../Core/Src/lcd_touch.c:73:6:LCD_DrawingPointerCircle	80	dynamic
+../Core/Src/lcd_touch.c:91:6:LCD_DrawBorder	24	static
+../Core/Src/lcd_touch.c:98:10:Touch_Read	40	static,ignoring_inline_asm
+../Core/Src/lcd_touch.c:107:6:Touch_EXTI_Callback	48	static

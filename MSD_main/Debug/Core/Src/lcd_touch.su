@@ -8,4 +8,5 @@
 ../Core/Src/lcd_touch.c:73:6:LCD_DrawingPointerCircle	80	dynamic
 ../Core/Src/lcd_touch.c:91:6:LCD_DrawBorder	24	static
 ../Core/Src/lcd_touch.c:98:10:Touch_Read	40	static,ignoring_inline_asm
-../Core/Src/lcd_touch.c:107:6:Touch_EXTI_Callback	48	static
+../Core/Src/lcd_touch.c:107:6:LCD_IRPointerCircle	88	dynamic
+../Core/Src/lcd_touch.c:130:6:Touch_EXTI_Callback	48	static

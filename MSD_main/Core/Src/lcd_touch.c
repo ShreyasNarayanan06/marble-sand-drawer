@@ -104,6 +104,29 @@ uint16_t Touch_Read(uint8_t cmd) {
     return ((rx_data[1] << 8) | rx_data[2]) >> 4;
 }
 
+void LCD_IRPointerCircle(int x, int y, int r) {
+    static int ir_prev_x = -1, ir_prev_y = -1;
+    int size = 2 * r + 1; uint8_t buf[size * size * 2];
+
+    if (ir_prev_x >= 0 && ir_prev_y >= 0) {
+        for (int i = 0; i < size * size * 2; i++) buf[i] = 0xFF; // White
+        int x_s = ir_prev_x - r < 0 ? 0 : ir_prev_x - r; x_s = x_s + size > 319 ? 319 - size + 1 : x_s;
+        int y_s = ir_prev_y - r < 0 ? 0 : ir_prev_y - r; y_s = y_s + size > 479 ? 479 - size + 1 : y_s;
+        LCD_WriteCommand(0x2A); LCD_WriteByte(x_s >> 8); LCD_WriteByte(x_s & 0xFF); LCD_WriteByte((x_s + size - 1) >> 8); LCD_WriteByte((x_s + size - 1) & 0xFF);
+        LCD_WriteCommand(0x2B); LCD_WriteByte(y_s >> 8); LCD_WriteByte(y_s & 0xFF); LCD_WriteByte((y_s + size - 1) >> 8); LCD_WriteByte((y_s + size - 1) & 0xFF);
+        LCD_WriteCommand(0x2C); LCD_WriteData(buf, sizeof(buf));
+    }
+
+    for (int i = 0; i < size * size * 2; i++) buf[i] = 0x00; // Black
+    int x_s = x - r < 0 ? 0 : x - r; x_s = x_s + size > 319 ? 319 - size + 1 : x_s;
+    int y_s = y - r < 0 ? 0 : y - r; y_s = y_s + size > 479 ? 479 - size + 1 : y_s;
+    LCD_WriteCommand(0x2A); LCD_WriteByte(x_s >> 8); LCD_WriteByte(x_s & 0xFF); LCD_WriteByte((x_s + size - 1) >> 8); LCD_WriteByte((x_s + size - 1) & 0xFF);
+    LCD_WriteCommand(0x2B); LCD_WriteByte(y_s >> 8); LCD_WriteByte(y_s & 0xFF); LCD_WriteByte((y_s + size - 1) >> 8); LCD_WriteByte((y_s + size - 1) & 0xFF);
+    LCD_WriteCommand(0x2C); LCD_WriteData(buf, sizeof(buf));
+
+    ir_prev_x = x; ir_prev_y = y;
+}
+
 void Touch_EXTI_Callback(uint16_t GPIO_Pin) {
     if (GPIO_Pin == GPIO_PIN_6) {
     	printf("IRQ Fired!\r\n");

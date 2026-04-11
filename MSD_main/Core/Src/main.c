@@ -72,6 +72,40 @@ volatile uint8_t manual_mode = 0;
 volatile uint8_t ir_mode = 1;
 
 
+void Process_IR_Data(void) {
+    uint8_t start = 0;
+    HAL_StatusTypeDef status;
+
+    // 1. Wait for start byte (reduced timeout so it doesn't freeze the loop)
+    status = HAL_UART_Receive(&huart1, &start, 1, 10);
+    if (status != HAL_OK) return;
+
+    // 2. Check if it is a valid ESP32 mode byte
+    if (start != 0xAA && start != 0xAB) return;
+
+    // 3. Receive the 4 payload bytes
+    uint8_t raw[4] = {0};
+    status = HAL_UART_Receive(&huart1, raw, 4, 100);
+    if (status != HAL_OK) {
+        printf("Payload RX fail\r\n");
+        return;
+    }
+
+    // 4. Decode X and Y
+    uint16_t x = ((uint16_t)raw[0] << 8) | raw[1];
+    uint16_t y = ((uint16_t)raw[2] << 8) | raw[3];
+
+    printf("raw = %02X %02X %02X %02X | x = %u, y = %u\r\n",
+           raw[0], raw[1], raw[2], raw[3], x, y);
+
+    // 5. Draw using the correct mode
+    if (start == 0xAA) {
+        LCD_IRPointerCircle(x, y, 3); // Cursor mode
+    } else {
+        LCD_DrawingPointerCircle(x, y, 3); // Draw mode
+    }
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -196,8 +230,11 @@ int main(void)
  // }
   LCD_Init();
     LCD_ClearScreen();
-    LCD_DrawBorder();
-    while(1) {}
+    LCD_DrawBorder();\
+    HAL_NVIC_DisableIRQ(EXTI9_5_IRQn); // Disable touch for isolated IR test
+    while(1) {
+    	Process_IR_Data();
+    }
   /* USER CODE END 3 */
 }
 

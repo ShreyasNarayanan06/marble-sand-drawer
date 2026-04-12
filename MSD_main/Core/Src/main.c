@@ -20,6 +20,7 @@
 #include "main.h"
 #include "adc.h"
 #include "usart.h"
+#include "spi.h"
 #include "tim.h"
 #include "gpio.h"
 
@@ -28,6 +29,7 @@
 #include "gmove.h"
 #include "stdio.h"
 #include "joystick.h"
+#include "lcd_touch.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -70,6 +72,40 @@ volatile uint8_t manual_mode = 0;
 volatile uint8_t ir_mode = 1;
 
 
+void Process_IR_Data(void) {
+    uint8_t start = 0;
+    HAL_StatusTypeDef status;
+
+    // 1. Wait for start byte (reduced timeout so it doesn't freeze the loop)
+    status = HAL_UART_Receive(&huart1, &start, 1, 10);
+    if (status != HAL_OK) return;
+
+    // 2. Check if it is a valid ESP32 mode byte
+    if (start != 0xAA && start != 0xAB) return;
+
+    // 3. Receive the 4 payload bytes
+    uint8_t raw[4] = {0};
+    status = HAL_UART_Receive(&huart1, raw, 4, 100);
+    if (status != HAL_OK) {
+        printf("Payload RX fail\r\n");
+        return;
+    }
+
+    // 4. Decode X and Y
+    uint16_t x = ((uint16_t)raw[0] << 8) | raw[1];
+    uint16_t y = ((uint16_t)raw[2] << 8) | raw[3];
+
+    printf("raw = %02X %02X %02X %02X | x = %u, y = %u\r\n",
+           raw[0], raw[1], raw[2], raw[3], x, y);
+
+    // 5. Draw using the correct mode
+    if (start == 0xAA) {
+        LCD_IRPointerCircle(x, y, 3); // Cursor mode
+    } else {
+        LCD_DrawingPointerCircle(x, y, 3); // Draw mode
+    }
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -107,6 +143,8 @@ int main(void)
   MX_ADC1_Init();
   MX_LPUART1_UART_Init();
   MX_USART1_UART_Init();
+  MX_SPI1_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
   //JoyCal joy = joystick_calibrate();
   /* USER CODE END 2 */
@@ -120,81 +158,85 @@ int main(void)
 //          0.00001819, -0.00048837
 //    };
 
-  float x_out, y_out, mag, angle;
-  uint8_t raw[4];
-
-  if (ir_mode) Gantry_Home();
-
-
-  while (1)
-  {
-	  if(manual_mode) {
-		  int rawX = getX();
-		  int rawY = getY();
-		  //joystick_correct(&joy, rawX, rawY, &x_out, &y_out, &mag, &angle);
-		  joyMove(x_out, y_out);
-		  HAL_Delay(20);
-	  }
-	  else if (ir_mode) {
-		  uint8_t start = 0;
-		      HAL_StatusTypeDef status;
-
-		       status = HAL_UART_Receive(&huart1, &start, 1, 1000);
-		       if (status != HAL_OK)
-		       {
-		           printf("Timeout or RX fail waiting for start\r\n");
-		           continue;
-		       }
-
-
-		       if (start != 0xAA)
-		       {
-		           continue;
-		       }
-
-		       uint8_t raw[4] = {0};
-		       status = HAL_UART_Receive(&huart1, raw, 4, 1);
-		       if (status != HAL_OK)
-		       {
-		           printf("Payload RX fail\r\n");
-		           continue;
-		       }
-
-		       uint16_t x = ((uint16_t)raw[0] << 8) | raw[1];
-		       uint16_t y = ((uint16_t)raw[2] << 8) | raw[3];
-
-		       uint16_t irx = percentIR(x);
-		       uint16_t iry = percentIR(y);
-
-		       printf("raw = %02X %02X %02X %02X | x = %u, y = %u\r\n",
-		              raw[0], raw[1], raw[2], raw[3], irx, iry);
-
-		       if (irx == 100 && iry == 100) {
-		    	   continue;
-		       }
-
-		       else {
-		    	  lineMove(percentDist(irx), percentDist(iry), 100);
-		       }
-
-		       HAL_Delay(10);
-	  }
-
-	  else {
-		  printf("auto mode\r\n");
-		  Gantry_Home();
-		  procCSV();
-		  manual_mode = 1;
-	  }
+//  float x_out, y_out, mag, angle;
+//  uint8_t raw[4];
+//
+//  if (ir_mode) Gantry_Home();
+//
+//
+//  while (1)
+//  {
+//	  if(manual_mode) {
+//		  int rawX = getX();
+//		  int rawY = getY();
+//		  //joystick_correct(&joy, rawX, rawY, &x_out, &y_out, &mag, &angle);
+//		  joyMove(x_out, y_out);
+//		  HAL_Delay(20);
+//	  }
+//	  else if (ir_mode) {
+//		  uint8_t start = 0;
+//		      HAL_StatusTypeDef status;
+//
+//		       status = HAL_UART_Receive(&huart1, &start, 1, 1000);
+//		       if (status != HAL_OK)
+//		       {
+//		           printf("Timeout or RX fail waiting for start\r\n");
+//		           continue;
+//		       }
+//
+//
+//		       if (start != 0xAA)
+//		       {
+//		           continue;
+//		       }
+//
+//		       uint8_t raw[4] = {0};
+//		       status = HAL_UART_Receive(&huart1, raw, 4, 1);
+//		       if (status != HAL_OK)
+//		       {
+//		           printf("Payload RX fail\r\n");
+//		           continue;
+//		       }
+//
+//		       uint16_t x = ((uint16_t)raw[0] << 8) | raw[1];
+//		       uint16_t y = ((uint16_t)raw[2] << 8) | raw[3];
+//
+//		       uint16_t irx = percentIR(x);
+//		       uint16_t iry = percentIR(y);
+//
+//		       printf("raw = %02X %02X %02X %02X | x = %u, y = %u\r\n",
+//		              raw[0], raw[1], raw[2], raw[3], irx, iry);
+//
+//		       if (irx == 100 && iry == 100) {
+//		    	   continue;
+//		       }
+//
+//		       else {
+//		    	  lineMove(percentDist(irx), percentDist(iry), 100);
+//		       }
+//
+//		       HAL_Delay(10);
+//	  }
+//
+//	  else {
+//		  printf("auto mode\r\n");
+//		  Gantry_Home();
+//		  procCSV();
+//		  manual_mode = 1;
+//	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
+ // }
+  LCD_Init();
+    LCD_ClearScreen();
+    LCD_DrawBorder();\
+    //HAL_NVIC_DisableIRQ(EXTI9_5_IRQn); // Disable touch for isolated IR test
+    while(1) {
+    	//Process_IR_Data();
+    }
   /* USER CODE END 3 */
 }
-
-
-
 
 /**
   * @brief System Clock Configuration
@@ -250,6 +292,11 @@ PUTCHAR_PROTOTYPE
 {
   HAL_UART_Transmit(&hlpuart1, (uint8_t *)&ch, 1, 0xFFFF);
   return ch;
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+    Touch_EXTI_Callback(GPIO_Pin);
+    GMove_EXTI_Callback(GPIO_Pin);
 }
 /* USER CODE END 4 */
 

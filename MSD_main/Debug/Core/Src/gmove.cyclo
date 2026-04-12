@@ -1,4 +1,4 @@
-../Core/Src/gmove.c:44:6:HAL_GPIO_EXTI_Callback	7
+../Core/Src/gmove.c:44:6:GMove_EXTI_Callback	7
 ../Core/Src/gmove.c:77:6:Gantry_Home	3
 ../Core/Src/gmove.c:150:6:mMove	6
 ../Core/Src/gmove.c:177:6:lineMove	17

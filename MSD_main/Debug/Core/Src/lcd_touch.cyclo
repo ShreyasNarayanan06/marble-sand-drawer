@@ -1,0 +1,12 @@
+../Core/Src/lcd_touch.c:11:6:LCD_WriteCommand	1
+../Core/Src/lcd_touch.c:18:6:LCD_WriteData	1
+../Core/Src/lcd_touch.c:25:6:LCD_WriteByte	1
+../Core/Src/lcd_touch.c:29:6:LCD_Init	1
+../Core/Src/lcd_touch.c:46:6:LCD_ClearScreen	3
+../Core/Src/lcd_touch.c:73:6:LCD_BlackScreen	2
+../Core/Src/lcd_touch.c:98:6:LCD_DrawPen	4
+../Core/Src/lcd_touch.c:130:6:LCD_DrawingPointerCircle	8
+../Core/Src/lcd_touch.c:184:6:LCD_DrawBorder	5
+../Core/Src/lcd_touch.c:200:10:Touch_Read	2
+../Core/Src/lcd_touch.c:215:6:LCD_IRPointerCircle	9
+../Core/Src/lcd_touch.c:273:6:Touch_EXTI_Callback	27

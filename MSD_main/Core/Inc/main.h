@@ -31,7 +31,20 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#define LCD_CS_Pin GPIO_PIN_5
+#define LCD_CS_GPIO_Port GPIOA
 
+#define TCH_CS_Pin GPIO_PIN_5
+#define TCH_CS_GPIO_Port GPIOD
+
+#define RESET_Pin GPIO_PIN_8
+#define RESET_GPIO_Port GPIOB
+
+#define DC_RS_Pin GPIO_PIN_9
+#define DC_RS_GPIO_Port GPIOB
+
+#define Touch_IRQ_Pin GPIO_PIN_6
+#define Touch_IRQ_GPIO_Port GPIOD
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -57,6 +70,8 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define LCD_CS_Pin GPIO_PIN_5
+#define LCD_CS_GPIO_Port GPIOA
 #define Y_axis_Direction_Pin GPIO_PIN_0
 #define Y_axis_Direction_GPIO_Port GPIOB
 #define X_axis_Limit_Pin GPIO_PIN_10
@@ -69,6 +84,15 @@ void Error_Handler(void);
 #define X_axis_Enable_GPIO_Port GPIOD
 #define X_axis_Direction_Pin GPIO_PIN_13
 #define X_axis_Direction_GPIO_Port GPIOD
+#define TCH_CS_Pin GPIO_PIN_5
+#define TCH_CS_GPIO_Port GPIOD
+#define Touch_IRQ_Pin GPIO_PIN_6
+#define Touch_IRQ_GPIO_Port GPIOD
+#define Touch_IRQ_EXTI_IRQn EXTI9_5_IRQn
+#define RESET_Pin GPIO_PIN_8
+#define RESET_GPIO_Port GPIOB
+#define DC_RS_Pin GPIO_PIN_9
+#define DC_RS_GPIO_Port GPIOB
 #define Y_axis_Enable_Pin GPIO_PIN_0
 #define Y_axis_Enable_GPIO_Port GPIOE
 

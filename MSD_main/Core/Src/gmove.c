@@ -41,7 +41,7 @@ volatile int32_t debugYCB = 0;
 volatile double MAX_ARR = 8000;
 
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+void GMove_EXTI_Callback(uint16_t GPIO_Pin) {
     // X-Axis Limit Switch Hit
     if (GPIO_Pin == GPIO_PIN_10) {
     	if (x_homing == 1) {

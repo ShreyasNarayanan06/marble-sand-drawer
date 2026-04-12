@@ -231,9 +231,9 @@ int main(void)
   LCD_Init();
     LCD_ClearScreen();
     LCD_DrawBorder();\
-    HAL_NVIC_DisableIRQ(EXTI9_5_IRQn); // Disable touch for isolated IR test
+    //HAL_NVIC_DisableIRQ(EXTI9_5_IRQn); // Disable touch for isolated IR test
     while(1) {
-    	Process_IR_Data();
+    	//Process_IR_Data();
     }
   /* USER CODE END 3 */
 }

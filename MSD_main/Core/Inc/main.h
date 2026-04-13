@@ -49,7 +49,18 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+typedef enum {
+	CMD_JOYSTICK,
+	CMD_HOME,
+	CMD_LINE
+} MotorCmdType;
 
+typedef struct{
+	MotorCmdType type;
+	float x;
+	float y;
+	uint16_t speed;
+} MotorCmd_t;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -98,6 +109,10 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN Private defines */
 extern volatile uint8_t manual_mode;
+
+#define percentDist(p) ((p) * 5.03238)
+
+#define percentIR(p) (uint16_t)(((uint32_t)(p) * 100) / 1023)
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

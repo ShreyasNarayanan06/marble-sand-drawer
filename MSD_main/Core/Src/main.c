@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 #include "adc.h"
 #include "usart.h"
 #include "spi.h"
@@ -39,9 +40,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define percentDist(p) ((p) * 5.03238)
 
-#define percentIR(p) (uint16_t)(((uint32_t)(p) * 100) / 1023)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -62,6 +61,7 @@
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -146,94 +146,27 @@ int main(void)
   MX_SPI1_Init();
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
-  //JoyCal joy = joystick_calibrate();
+    LCD_Init();
+    LCD_ClearScreen();
+    LCD_DrawBorder();
   /* USER CODE END 2 */
+
+  /* Init scheduler */
+  osKernelInitialize();  /* Call init function for freertos objects (in cmsis_os2.c) */
+  MX_FREERTOS_Init();
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
- // joyMove(1.0f, 0.0f); // Force full speed X
-//    JoyCal joy = {
-//    		  2000, 1900,
-//          0.00096237, 0.00048359,
-//          0.00001819, -0.00048837
-//    };
-
-//  float x_out, y_out, mag, angle;
-//  uint8_t raw[4];
-//
-//  if (ir_mode) Gantry_Home();
-//
-//
-//  while (1)
-//  {
-//	  if(manual_mode) {
-//		  int rawX = getX();
-//		  int rawY = getY();
-//		  //joystick_correct(&joy, rawX, rawY, &x_out, &y_out, &mag, &angle);
-//		  joyMove(x_out, y_out);
-//		  HAL_Delay(20);
-//	  }
-//	  else if (ir_mode) {
-//		  uint8_t start = 0;
-//		      HAL_StatusTypeDef status;
-//
-//		       status = HAL_UART_Receive(&huart1, &start, 1, 1000);
-//		       if (status != HAL_OK)
-//		       {
-//		           printf("Timeout or RX fail waiting for start\r\n");
-//		           continue;
-//		       }
-//
-//
-//		       if (start != 0xAA)
-//		       {
-//		           continue;
-//		       }
-//
-//		       uint8_t raw[4] = {0};
-//		       status = HAL_UART_Receive(&huart1, raw, 4, 1);
-//		       if (status != HAL_OK)
-//		       {
-//		           printf("Payload RX fail\r\n");
-//		           continue;
-//		       }
-//
-//		       uint16_t x = ((uint16_t)raw[0] << 8) | raw[1];
-//		       uint16_t y = ((uint16_t)raw[2] << 8) | raw[3];
-//
-//		       uint16_t irx = percentIR(x);
-//		       uint16_t iry = percentIR(y);
-//
-//		       printf("raw = %02X %02X %02X %02X | x = %u, y = %u\r\n",
-//		              raw[0], raw[1], raw[2], raw[3], irx, iry);
-//
-//		       if (irx == 100 && iry == 100) {
-//		    	   continue;
-//		       }
-//
-//		       else {
-//		    	  lineMove(percentDist(irx), percentDist(iry), 100);
-//		       }
-//
-//		       HAL_Delay(10);
-//	  }
-//
-//	  else {
-//		  printf("auto mode\r\n");
-//		  Gantry_Home();
-//		  procCSV();
-//		  manual_mode = 1;
-//	  }
+    while (1)
+    {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
- // }
-  LCD_Init();
-    LCD_ClearScreen();
-    LCD_DrawBorder();\
-    //HAL_NVIC_DisableIRQ(EXTI9_5_IRQn); // Disable touch for isolated IR test
-    while(1) {
-    	//Process_IR_Data();
     }
   /* USER CODE END 3 */
 }
@@ -294,11 +227,44 @@ PUTCHAR_PROTOTYPE
   return ch;
 }
 
+#include "cmsis_os.h"
+extern osMessageQueueId_t MQH;
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-    Touch_EXTI_Callback(GPIO_Pin);
-    GMove_EXTI_Callback(GPIO_Pin);
+    if (GPIO_Pin == GPIO_PIN_1) {
+        MotorCmd_t cmd;
+        cmd.type = CMD_HOME;
+        cmd.x = 0;
+        cmd.y = 0;
+        cmd.speed = 100;
+
+        // Push command to RTOS queue (timeout must be 0 in ISRs)
+        osMessageQueuePut(MQH, &cmd, 0, 0);
+    }
 }
 /* USER CODE END 4 */
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM6 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM6)
+  {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.

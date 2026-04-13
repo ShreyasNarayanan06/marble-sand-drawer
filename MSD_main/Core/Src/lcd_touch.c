@@ -271,70 +271,71 @@ void LCD_IRPointerCircle(int x, int y, int r) {
 }
 
 void Touch_EXTI_Callback(uint16_t GPIO_Pin) {
-    if (GPIO_Pin == GPIO_PIN_6) {
-       // printf("IRQ Fired!\r\n");
+//    if (GPIO_Pin == GPIO_PIN_6) {
+//       // printf("IRQ Fired!\r\n");
+//
+//        if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_6) == GPIO_PIN_SET) return;
+//
+//        uint16_t z1 = Touch_Read(0xB0);
+//
+//        if (z1 < 50 || z1 > 4000) return;
+//
+//        Touch_Read(0xD0);
+//        Touch_Read(0x90);
+//
+//        uint32_t sum_x = 0;
+//        uint32_t sum_y = 0;
+//
+//        for (int i = 0; i < 10; i++) {
+//            sum_x += Touch_Read(0xD0);
+//            sum_y += Touch_Read(0x90);
+//        }
+//
+//        uint16_t raw_x = sum_x / 10;
+//        uint16_t raw_y = sum_y / 10;
+//
+//        //printf("Raw: %d, %d\r\n", raw_x, raw_y);
+//
+//        if (raw_x < 50 || raw_x > 4000 || raw_y < 50 || raw_y > 4000) return;
+//
+//        if (raw_x < 200) raw_x = 200;
+//        if (raw_x > 1811) raw_x = 1811;
+//        if (raw_y < 200) raw_y = 200;
+//        if (raw_y > 1920) raw_y = 1920;
+//
+//        int pixel_x = ((int)raw_x - 200) * 320 / (1811 - 200);
+//        int pixel_y = 479 - (((int)raw_y - 200) * 480 / (1920 - 200));
+//
+//        if (pixel_x < 0) pixel_x = 0;
+//        if (pixel_x > 319) pixel_x = 319;
+//        if (pixel_y < 0) pixel_y = 0;
+//        if (pixel_y > 479) pixel_y = 479;
+//
+//        if (pixel_x >= 160 && pixel_y >= 40 && pixel_y < 100) {
+//            LCD_ClearScreen();
+//            LCD_DrawBorder();
+//            printf("CLEAR_LOG\n\r");
+//            lpx = -1;
+//            lpy = -1;
+//            return;
+//        }
+//
+//        if (pixel_x < 160 && pixel_y >= 40 && pixel_y < 100) {
+//            printf("SAVE_FILE\n\r");
+//            return;
+//        }
+//
+//        if (lpx == -1) {
+//            lpx = pixel_x;
+//            lpy = pixel_y;
+//        } else {
+//            if (abs(pixel_x - lpx) > 3000 || abs(pixel_y - lpy) > 3000) return;
+//            lpx = pixel_x;
+//            lpy = pixel_y;
+//        }
+//
+//        LCD_DrawingPointerCircle(pixel_x, pixel_y, 3);
+//        printf("%d,%d\n\r", pixel_x, pixel_y);
+//    }
 
-        if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_6) == GPIO_PIN_SET) return;
-
-        uint16_t z1 = Touch_Read(0xB0);
-
-        if (z1 < 50 || z1 > 4000) return;
-
-        Touch_Read(0xD0);
-        Touch_Read(0x90);
-
-        uint32_t sum_x = 0;
-        uint32_t sum_y = 0;
-
-        for (int i = 0; i < 10; i++) {
-            sum_x += Touch_Read(0xD0);
-            sum_y += Touch_Read(0x90);
-        }
-
-        uint16_t raw_x = sum_x / 10;
-        uint16_t raw_y = sum_y / 10;
-
-        //printf("Raw: %d, %d\r\n", raw_x, raw_y);
-
-        if (raw_x < 50 || raw_x > 4000 || raw_y < 50 || raw_y > 4000) return;
-
-        if (raw_x < 200) raw_x = 200;
-        if (raw_x > 1811) raw_x = 1811;
-        if (raw_y < 200) raw_y = 200;
-        if (raw_y > 1920) raw_y = 1920;
-
-        int pixel_x = ((int)raw_x - 200) * 320 / (1811 - 200);
-        int pixel_y = 479 - (((int)raw_y - 200) * 480 / (1920 - 200));
-
-        if (pixel_x < 0) pixel_x = 0;
-        if (pixel_x > 319) pixel_x = 319;
-        if (pixel_y < 0) pixel_y = 0;
-        if (pixel_y > 479) pixel_y = 479;
-
-        if (pixel_x >= 160 && pixel_y >= 40 && pixel_y < 100) {
-            LCD_ClearScreen();
-            LCD_DrawBorder();
-            printf("CLEAR_LOG\n\r");
-            lpx = -1;
-            lpy = -1;
-            return;
-        }
-
-        if (pixel_x < 160 && pixel_y >= 40 && pixel_y < 100) {
-            printf("SAVE_FILE\n\r");
-            return;
-        }
-
-        if (lpx == -1) {
-            lpx = pixel_x;
-            lpy = pixel_y;
-        } else {
-            if (abs(pixel_x - lpx) > 3000 || abs(pixel_y - lpy) > 3000) return;
-            lpx = pixel_x;
-            lpy = pixel_y;
-        }
-
-        LCD_DrawingPointerCircle(pixel_x, pixel_y, 3);
-        printf("%d,%d\n\r", pixel_x, pixel_y);
-    }
 }

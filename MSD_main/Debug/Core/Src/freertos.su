@@ -1,0 +1,7 @@
+../Core/Src/freertos.c:113:6:MX_FREERTOS_Init	32	static
+../Core/Src/freertos.c:174:6:StartDefaultTask	16	static
+../Core/Src/freertos.c:192:6:StartMotorTask	56	static
+../Core/Src/freertos.c:226:6:StartJoyTask	96	static
+../Core/Src/freertos.c:264:6:StartInputTask	72	static
+../Core/Src/freertos.c:335:6:StartIdleTask	40	static
+../Core/Src/freertos.c:373:6:vApplicationStackOverflowHook	24	static,ignoring_inline_asm

@@ -1,0 +1,7 @@
+../Core/Src/freertos.c:113:6:MX_FREERTOS_Init	1
+../Core/Src/freertos.c:174:6:StartDefaultTask	1
+../Core/Src/freertos.c:192:6:StartMotorTask	2
+../Core/Src/freertos.c:226:6:StartJoyTask	3
+../Core/Src/freertos.c:264:6:StartInputTask	14
+../Core/Src/freertos.c:335:6:StartIdleTask	3
+../Core/Src/freertos.c:373:6:vApplicationStackOverflowHook	1

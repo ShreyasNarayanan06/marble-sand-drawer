@@ -21,6 +21,7 @@
 #include "joystick.h"
 #include "lcd_touch.h"
 #include "path_data.h"
+#include<stdlib.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -120,7 +121,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
     LCD_Init();
     LCD_ClearScreen();
-    LCD_DrawBorder();
+    LCD_DrawingInit();
 
     JoyCal joy = {2063.00, 2080.00, 0.00054599, -0.00006252, 0.00001426, -0.00100615};
 
@@ -132,6 +133,8 @@ int main(void)
 
     uint32_t last_print = 0;
     int point_index = 0;
+
+    uint32_t last_joy = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -140,27 +143,27 @@ int main(void)
 
     while (1)
       {
-          if (touch_flag) {
-              touch_flag = 0;
-              last_activity = HAL_GetTick();
-          }
-
-          if (uart_flag) {
-              uart_flag = 0;
-              last_activity = HAL_GetTick();
-
-              uint16_t x = ((uint16_t)rx_buffer[1] << 8) | rx_buffer[2];
-              uint16_t y = ((uint16_t)rx_buffer[3] << 8) | rx_buffer[4];
-
-              if (rx_buffer[0] == 0xAA) LCD_IRPointerCircle(x, y, 3);
-              else LCD_DrawingPointerCircle(x, y, 3);
-
-              uint16_t irx = percentIR(x);
-              uint16_t iry = percentIR(y);
-              if (!(irx == 100 && iry == 100)) {
-                  lineMove(percentDist(irx), percentDist(iry), 100);
-              }
-          }
+//          if (touch_flag) {
+//              touch_flag = 0;
+//              last_activity = HAL_GetTick();
+//          }
+//
+//          if (uart_flag) {
+//              uart_flag = 0;
+//              last_activity = HAL_GetTick();
+//
+//              uint16_t x = ((uint16_t)rx_buffer[1] << 8) | rx_buffer[2];
+//              uint16_t y = ((uint16_t)rx_buffer[3] << 8) | rx_buffer[4];
+//
+//              if (rx_buffer[0] == 0xAA) LCD_IRPointerCircle(x, y, 3);
+//              else LCD_DrawingPointerCircle(x, y, 3);
+//
+//              uint16_t irx = percentIR(x);
+//              uint16_t iry = percentIR(y);
+//              if (!(irx == 100 && iry == 100)) {
+//                  lineMove(percentDist(irx), percentDist(iry), 100);
+//              }
+//          }
 
           if (manual_mode && (HAL_GetTick() - last_joy > 20)) {
               last_joy = HAL_GetTick();
@@ -185,7 +188,7 @@ int main(void)
       }
     }
   /* USER CODE END 3 */
-}
+
 
 /**
   * @brief System Clock Configuration

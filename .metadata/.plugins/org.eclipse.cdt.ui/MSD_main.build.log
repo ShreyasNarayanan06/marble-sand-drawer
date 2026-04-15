@@ -1,0 +1,17 @@
+19:28:40 **** Incremental Build of configuration Debug for project MSD_main ****
+make -j12 all 
+arm-none-eabi-gcc "../Core/Src/lcd_touch.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32L4R5xx -c -I../Core/Inc -I../Drivers/STM32L4xx_HAL_Driver/Inc -I../Drivers/STM32L4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32L4xx/Include -I../Drivers/CMSIS/Include -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/lcd_touch.d" -MT"Core/Src/lcd_touch.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/lcd_touch.o"
+arm-none-eabi-gcc -o "MSD_main.elf" @"objects.list"   -mcpu=cortex-m4 -T"C:\Users\nshreyas\Desktop\marble-sand-drawer\MSD_main\STM32L4R5ZITXP_FLASH.ld" --specs=nosys.specs -Wl,-Map="MSD_main.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: MSD_main.elf
+ 
+arm-none-eabi-size  MSD_main.elf 
+arm-none-eabi-objdump -h -S MSD_main.elf  > "MSD_main.list"
+   text	   data	    bss	    dec	    hex	filename
+  54852	    500	   2792	  58144	   e320	MSD_main.elf
+Finished building: default.size.stdout
+ 
+Finished building: MSD_main.list
+ 
+
+19:28:42 Build Finished. 0 errors, 0 warnings. (took 1s.761ms)
+

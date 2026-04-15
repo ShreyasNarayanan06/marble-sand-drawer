@@ -10,7 +10,7 @@ extern SPI_HandleTypeDef hspi2;
 void LCD_Init(void);
 void LCD_ClearScreen(void);
 void LCD_BlackScreen(void);
-void LCD_DrawBorder(void);
+void LCD_DrawingInit(void);
 void LCD_DrawingPointerCircle(int x, int y, int r);
 void LCD_DrawPen(int x, int y, uint16_t color);
 void LCD_IRPointerCircle(int x, int y, int r);

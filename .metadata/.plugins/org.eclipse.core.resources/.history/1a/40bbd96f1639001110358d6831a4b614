@@ -1,0 +1,348 @@
+#include "lcd_touch.h"
+#include <stdlib.h>
+#include <stdio.h>
+
+int prev_x = -1;
+int prev_y = -1;
+
+volatile int lpx = -1;
+volatile int lpy = -1;
+
+void LCD_WriteCommand(uint8_t cmd) {
+    HAL_GPIO_WritePin(DC_RS_GPIO_Port, DC_RS_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_RESET);
+    HAL_SPI_Transmit(&hspi1, &cmd, 1, HAL_MAX_DELAY);
+    HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_SET);
+}
+
+void LCD_WriteData(uint8_t *data, int size) {
+    HAL_GPIO_WritePin(DC_RS_GPIO_Port, DC_RS_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_RESET);
+    HAL_SPI_Transmit(&hspi1, data, size, HAL_MAX_DELAY);
+    HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_SET);
+}
+
+void LCD_WriteByte(uint8_t data) {
+    LCD_WriteData(&data, 1);
+}
+
+void LCD_Init(void) {
+    HAL_GPIO_WritePin(RESET_GPIO_Port, RESET_Pin, GPIO_PIN_RESET);
+    HAL_Delay(50);
+    HAL_GPIO_WritePin(RESET_GPIO_Port, RESET_Pin, GPIO_PIN_SET);
+    HAL_Delay(120);
+    LCD_WriteCommand(0x01);
+    HAL_Delay(120);
+    LCD_WriteCommand(0x11);
+    HAL_Delay(120);
+    LCD_WriteCommand(0x3A);
+    LCD_WriteByte(0x55);
+    LCD_WriteCommand(0x36);
+    LCD_WriteByte(0x48);
+    LCD_WriteCommand(0x29);
+    HAL_Delay(10);
+}
+
+void LCD_ClearScreen(void) {
+    LCD_WriteCommand(0x2A);
+    LCD_WriteByte(0x00);
+    LCD_WriteByte(0x00);
+    LCD_WriteByte(0x01);
+    LCD_WriteByte(0x3F);
+
+    LCD_WriteCommand(0x2B);
+    LCD_WriteByte(0x00);
+    LCD_WriteByte(0x00);
+    LCD_WriteByte(0x01);
+    LCD_WriteByte(0xDF);
+
+    LCD_WriteCommand(0x2C);
+
+    uint8_t buf[640];
+
+    for (int i = 0; i < 640; i++) buf[i] = 0xFF;
+
+    HAL_GPIO_WritePin(DC_RS_GPIO_Port, DC_RS_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_RESET);
+
+    for(uint32_t row = 0; row < 480; row++) HAL_SPI_Transmit(&hspi1, buf, 640, HAL_MAX_DELAY);
+
+    HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_SET);
+}
+
+void LCD_BlackScreen(void) {
+    LCD_WriteCommand(0x2A);
+    LCD_WriteByte(0x00);
+    LCD_WriteByte(0x00);
+    LCD_WriteByte(0x01);
+    LCD_WriteByte(0x3F);
+
+    LCD_WriteCommand(0x2B);
+    LCD_WriteByte(0x00);
+    LCD_WriteByte(0x00);
+    LCD_WriteByte(0x01);
+    LCD_WriteByte(0xDF);
+
+    LCD_WriteCommand(0x2C);
+
+    uint8_t buf[640] = {0};
+
+    HAL_GPIO_WritePin(DC_RS_GPIO_Port, DC_RS_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_RESET);
+
+    for(uint32_t row = 0; row < 480; row++) HAL_SPI_Transmit(&hspi1, buf, 640, HAL_MAX_DELAY);
+
+    HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_SET);
+}
+
+void LCD_DrawPen(int x, int y, uint16_t color) {
+    int r = 3;
+    int size = (2 * r + 1);
+    uint8_t buf[size * size * 2];
+
+    for (int i = 0; i < size * size; i++) {
+        buf[2 * i] = color >> 8;
+        buf[2 * i + 1] = color & 0xFF;
+    }
+
+    int x_start = x - r < 0 ? 0 : x - r;
+    x_start = x_start + size > 319 ? 319 - size + 1 : x_start;
+
+    int y_start = y - r < 0 ? 0 : y - r;
+    y_start = y_start + size > 479 ? 479 - size + 1 : y_start;
+
+    LCD_WriteCommand(0x2A);
+    LCD_WriteByte(x_start >> 8);
+    LCD_WriteByte(x_start & 0xFF);
+    LCD_WriteByte((x_start + size - 1) >> 8);
+    LCD_WriteByte((x_start + size - 1) & 0xFF);
+
+    LCD_WriteCommand(0x2B);
+    LCD_WriteByte(y_start >> 8);
+    LCD_WriteByte(y_start & 0xFF);
+    LCD_WriteByte((y_start + size - 1) >> 8);
+    LCD_WriteByte((y_start + size - 1) & 0xFF);
+
+    LCD_WriteCommand(0x2C);
+    LCD_WriteData(buf, sizeof(buf));
+}
+
+void LCD_DrawingPointerCircle(int x, int y, int r) {
+    int size = 2 * r + 1;
+    uint8_t buf[size * size * 2];
+
+    for (int i = 0; i < size * size * 2; i++) buf[i] = 0x00;
+
+    if (prev_x >= 0 && prev_y >= 0) {
+        int x_s = prev_x - 3 < 0 ? 0 : prev_x - 3;
+        x_s = x_s + size > 319 ? 319 - size + 1 : x_s;
+
+        int y_s = prev_y - 3 < 0 ? 0 : prev_y - 3;
+        y_s = y_s + size > 479 ? 479 - size + 1 : y_s;
+
+        LCD_WriteCommand(0x2A);
+        LCD_WriteByte(x_s >> 8);
+        LCD_WriteByte(x_s & 0xFF);
+        LCD_WriteByte((x_s + size - 1) >> 8);
+        LCD_WriteByte((x_s + size - 1) & 0xFF);
+
+        LCD_WriteCommand(0x2B);
+        LCD_WriteByte(y_s >> 8);
+        LCD_WriteByte(y_s & 0xFF);
+        LCD_WriteByte((y_s + size - 1) >> 8);
+        LCD_WriteByte((y_s + size - 1) & 0xFF);
+
+        LCD_WriteCommand(0x2C);
+        LCD_WriteData(buf, sizeof(buf));
+    }
+
+    int x_s = x - r < 0 ? 0 : x - r;
+    x_s = x_s + size > 319 ? 319 - size + 1 : x_s;
+
+    int y_s = y - r < 0 ? 0 : y - r;
+    y_s = y_s + size > 479 ? 479 - size + 1 : y_s;
+
+    LCD_WriteCommand(0x2A);
+    LCD_WriteByte(x_s >> 8);
+    LCD_WriteByte(x_s & 0xFF);
+    LCD_WriteByte((x_s + size - 1) >> 8);
+    LCD_WriteByte((x_s + size - 1) & 0xFF);
+
+    LCD_WriteCommand(0x2B);
+    LCD_WriteByte(y_s >> 8);
+    LCD_WriteByte(y_s & 0xFF);
+    LCD_WriteByte((y_s + size - 1) >> 8);
+    LCD_WriteByte((y_s + size - 1) & 0xFF);
+
+    LCD_WriteCommand(0x2C);
+    LCD_WriteData(buf, sizeof(buf));
+
+    prev_x = x;
+    prev_y = y;
+}
+
+void LCD_Init(void) {
+	// Drawing Border
+    for (int x = 0; x < 320; x++) {
+        LCD_DrawPen(x, 120, 0x0000);
+        LCD_DrawPen(x, 440, 0x0000);
+    }
+
+    for (int y = 120; y < 440; y++) {
+        LCD_DrawPen(0, y, 0x0000);
+        LCD_DrawPen(319, y, 0x0000);
+    }
+
+    // Making Buttons
+
+    for (int y = 60; y < 120; y++) LCD_DrawPen(160, y, 0x0000); // vert
+
+    for (int x = 0; x < 320; x++) LCD_DrawPen(x, 60, 0x0000); // hori
+
+    // Drawing Reset
+    LCD_DrawPen(80, 90, 0x0000);
+
+    // Drawing Send
+}
+
+uint16_t Touch_Read(uint8_t cmd) {
+    uint8_t tx_data[3] = {cmd, 0x00, 0x00};
+    uint8_t rx_data[3] = {0};
+
+    HAL_GPIO_WritePin(TCH_CS_GPIO_Port, TCH_CS_Pin, GPIO_PIN_RESET);
+
+    for(volatile int i = 0; i < 200; i++) __NOP();
+
+    HAL_SPI_TransmitReceive(&hspi2, tx_data, rx_data, 3, 100);
+
+    HAL_GPIO_WritePin(TCH_CS_GPIO_Port, TCH_CS_Pin, GPIO_PIN_SET);
+
+    return ((rx_data[1] << 8) | rx_data[2]) >> 4;
+}
+
+void LCD_IRPointerCircle(int x, int y, int r) {
+    static int ir_prev_x = -1;
+    static int ir_prev_y = -1;
+    int size = 2 * r + 1;
+    uint8_t buf[size * size * 2];
+
+    if (ir_prev_x >= 0 && ir_prev_y >= 0) {
+        for (int i = 0; i < size * size * 2; i++) buf[i] = 0xFF; // White
+
+        int x_s = ir_prev_x - r < 0 ? 0 : ir_prev_x - r;
+        x_s = x_s + size > 319 ? 319 - size + 1 : x_s;
+
+        int y_s = ir_prev_y - r < 0 ? 0 : ir_prev_y - r;
+        y_s = y_s + size > 479 ? 479 - size + 1 : y_s;
+
+        LCD_WriteCommand(0x2A);
+        LCD_WriteByte(x_s >> 8);
+        LCD_WriteByte(x_s & 0xFF);
+        LCD_WriteByte((x_s + size - 1) >> 8);
+        LCD_WriteByte((x_s + size - 1) & 0xFF);
+
+        LCD_WriteCommand(0x2B);
+        LCD_WriteByte(y_s >> 8);
+        LCD_WriteByte(y_s & 0xFF);
+        LCD_WriteByte((y_s + size - 1) >> 8);
+        LCD_WriteByte((y_s + size - 1) & 0xFF);
+
+        LCD_WriteCommand(0x2C);
+        LCD_WriteData(buf, sizeof(buf));
+    }
+
+    for (int i = 0; i < size * size * 2; i++) buf[i] = 0x00; // Black
+
+    int x_s = x - r < 0 ? 0 : x - r;
+    x_s = x_s + size > 319 ? 319 - size + 1 : x_s;
+
+    int y_s = y - r < 0 ? 0 : y - r;
+    y_s = y_s + size > 479 ? 479 - size + 1 : y_s;
+
+    LCD_WriteCommand(0x2A);
+    LCD_WriteByte(x_s >> 8);
+    LCD_WriteByte(x_s & 0xFF);
+    LCD_WriteByte((x_s + size - 1) >> 8);
+    LCD_WriteByte((x_s + size - 1) & 0xFF);
+
+    LCD_WriteCommand(0x2B);
+    LCD_WriteByte(y_s >> 8);
+    LCD_WriteByte(y_s & 0xFF);
+    LCD_WriteByte((y_s + size - 1) >> 8);
+    LCD_WriteByte((y_s + size - 1) & 0xFF);
+
+    LCD_WriteCommand(0x2C);
+    LCD_WriteData(buf, sizeof(buf));
+
+    ir_prev_x = x;
+    ir_prev_y = y;
+}
+
+void Touch_EXTI_Callback(uint16_t GPIO_Pin) {
+    if (GPIO_Pin == GPIO_PIN_6) {
+       // printf("IRQ Fired!\r\n");
+
+        if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_6) == GPIO_PIN_SET) return;
+
+        uint16_t z1 = Touch_Read(0xB0);
+
+        if (z1 < 50 || z1 > 4000) return;
+
+        Touch_Read(0xD0);
+        Touch_Read(0x90);
+
+        uint32_t sum_x = 0;
+        uint32_t sum_y = 0;
+
+        for (int i = 0; i < 10; i++) {
+            sum_x += Touch_Read(0xD0);
+            sum_y += Touch_Read(0x90);
+        }
+
+        uint16_t raw_x = sum_x / 10;
+        uint16_t raw_y = sum_y / 10;
+
+        //printf("Raw: %d, %d\r\n", raw_x, raw_y);
+
+        if (raw_x < 50 || raw_x > 4000 || raw_y < 50 || raw_y > 4000) return;
+
+        if (raw_x < 200) raw_x = 200;
+        if (raw_x > 1811) raw_x = 1811;
+        if (raw_y < 200) raw_y = 200;
+        if (raw_y > 1920) raw_y = 1920;
+
+        int pixel_x = ((int)raw_x - 200) * 320 / (1811 - 200);
+        int pixel_y = 479 - (((int)raw_y - 200) * 480 / (1920 - 200));
+
+        if (pixel_x < 0) pixel_x = 0;
+        if (pixel_x > 319) pixel_x = 319;
+        if (pixel_y < 0) pixel_y = 0;
+        if (pixel_y > 479) pixel_y = 479;
+
+        if (pixel_x >= 160 && pixel_y >= 40 && pixel_y < 100) {
+            LCD_ClearScreen();
+            LCD_DrawBorder();
+            printf("CLEAR_LOG\n\r");
+            lpx = -1;
+            lpy = -1;
+            return;
+        }
+
+        if (pixel_x < 160 && pixel_y >= 40 && pixel_y < 100) {
+            printf("SAVE_FILE\n\r");
+            return;
+        }
+
+        if (lpx == -1) {
+            lpx = pixel_x;
+            lpy = pixel_y;
+        } else {
+            if (abs(pixel_x - lpx) > 3000 || abs(pixel_y - lpy) > 3000) return;
+            lpx = pixel_x;
+            lpy = pixel_y;
+        }
+
+        LCD_DrawingPointerCircle(pixel_x, pixel_y, 3);
+        printf("%d,%d\n\r", pixel_x, pixel_y);
+    }
+}

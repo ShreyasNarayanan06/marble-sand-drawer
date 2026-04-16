@@ -98,6 +98,7 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN Private defines */
 extern volatile uint8_t manual_mode;
+extern volatile uint8_t ir_mode;
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

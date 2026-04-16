@@ -55,7 +55,7 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 volatile uint8_t manual_mode = 0;
-volatile uint8_t ir_mode = 1;
+volatile uint8_t ir_mode = 0;
 
 volatile uint8_t touch_flag = 0;
 volatile uint8_t uart_flag = 0;

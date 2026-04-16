@@ -8,6 +8,7 @@ int prev_y = -1;
 volatile int lpx = -1;
 volatile int lpy = -1;
 
+
 void LCD_WriteCommand(uint8_t cmd) {
     HAL_GPIO_WritePin(DC_RS_GPIO_Port, DC_RS_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_RESET);
@@ -91,6 +92,47 @@ void LCD_BlackScreen(void) {
     HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_RESET);
 
     for(uint32_t row = 0; row < 480; row++) HAL_SPI_Transmit(&hspi1, buf, 640, HAL_MAX_DELAY);
+
+    HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_SET);
+}
+
+void LCD_ClearDrawing(void) {
+    // 1. Set Column Address (X): 7 to 312
+    // 7 = 0x0007, 312 = 0x0138
+    LCD_WriteCommand(0x2A);
+    LCD_WriteByte(0x00);
+    LCD_WriteByte(0x07); // Start X (Pushed further in)
+    LCD_WriteByte(0x01);
+    LCD_WriteByte(0x38); // End X (Pushed further in)
+
+    // 2. Set Page Address (Y): 124 to 436
+    // 124 = 0x007C, 436 = 0x01B4
+    LCD_WriteCommand(0x2B);
+    LCD_WriteByte(0x00);
+    LCD_WriteByte(0x7C); // Start Y
+    LCD_WriteByte(0x01);
+    LCD_WriteByte(0xB4); // End Y
+
+    // 3. Prepare Memory Write
+    LCD_WriteCommand(0x2C);
+
+    // New Math for Buffer:
+    // Width = 312 - 7 + 1 = 306 pixels
+    // 306 pixels * 2 bytes/pixel = 612 bytes
+    uint16_t width = 306;
+    uint16_t height = 313;
+    uint32_t bytesPerRow = width * 2; // 612 bytes
+
+    uint8_t buf[612];
+    for (int i = 0; i < 612; i++) buf[i] = 0xFF; // White
+
+    HAL_GPIO_WritePin(DC_RS_GPIO_Port, DC_RS_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_RESET);
+
+    // 4. Fill the interior
+    for(uint32_t row = 0; row < height; row++) {
+        HAL_SPI_Transmit(&hspi1, buf, bytesPerRow, HAL_MAX_DELAY);
+    }
 
     HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_SET);
 }
@@ -339,7 +381,7 @@ void Touch_EXTI_Callback(uint16_t GPIO_Pin) {
     if (GPIO_Pin == GPIO_PIN_6) {
        // printf("IRQ Fired!\r\n");
 
-        if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_6) == GPIO_PIN_SET) return;
+        if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_6) == GPIO_PIN_SET) return; // if interrupt done, leave early
 
         uint16_t z1 = Touch_Read(0xB0);
 
@@ -359,10 +401,11 @@ void Touch_EXTI_Callback(uint16_t GPIO_Pin) {
         uint16_t raw_x = sum_x / 10;
         uint16_t raw_y = sum_y / 10;
 
-        //printf("Raw: %d, %d\r\n", raw_x, raw_y);
+        //printf("Raw: %d, %d\r\n", raw_x, raw_y); // current loc
 
-        if (raw_x < 50 || raw_x > 4000 || raw_y < 50 || raw_y > 4000) return;
+        if (raw_x < 50 || raw_x > 4000 || raw_y < 50 || raw_y > 4000) return; // return of out of bounds
 
+        // bound corner detection
         if (raw_x < 200) raw_x = 200;
         if (raw_x > 1811) raw_x = 1811;
         if (raw_y < 200) raw_y = 200;
@@ -376,20 +419,50 @@ void Touch_EXTI_Callback(uint16_t GPIO_Pin) {
         if (pixel_y < 0) pixel_y = 0;
         if (pixel_y > 479) pixel_y = 479;
 
+        // SWITCH
+        if (pixel_y >= 0 && pixel_y < 40) {
+        	if (ir_mode) {
+        		LCD_BlackScreen();
+        		LCD_ClearScreen();
+        	}
+        	else {
+        		LCD_ClearScreen();
+        	}
+        	ir_mode = ~ir_mode;
+        	LCD_DrawingInit();
+        	return;
+        }
+
+        // IR mode only needs the SWITCH button (maybe reset and send idk)
+        if (ir_mode) return;
+
+        // RESET
         if (pixel_x >= 160 && pixel_y >= 40 && pixel_y < 100) {
-            LCD_ClearScreen();
-            LCD_DrawingInit();
+        	LCD_ClearDrawing();
             printf("CLEAR_LOG\n\r");
             lpx = -1;
             lpy = -1;
             return;
         }
 
+        // SEND
         if (pixel_x < 160 && pixel_y >= 40 && pixel_y < 100) {
             printf("SAVE_FILE\n\r");
             return;
         }
 
+        // NO BUTTONS PRESSED -> DRAW STUFF
+
+        // Prevent from drawing on the top bar
+        // Only allow drawing if pixel_y is inside the drawing box (120 to 440)
+		// We add a small 5-pixel padding (125 and 435) so the pen doesn't bleed onto the border
+		if (pixel_y < 125 || pixel_y > 435) {
+			lpx = -1; // Reset line tracking so it doesn't "jump" when you return to the box
+			lpy = -1;
+			return; // Ignore the touch!
+		}
+
+		// handling invalid cases
         if (lpx == -1) {
             lpx = pixel_x;
             lpy = pixel_y;
@@ -400,6 +473,6 @@ void Touch_EXTI_Callback(uint16_t GPIO_Pin) {
         }
 
         LCD_DrawingPointerCircle(pixel_x, pixel_y, 3);
-        printf("%d,%d\n\r", pixel_x, pixel_y);
+        // printf("%d,%d\n\r", pixel_x, pixel_y);
     }
 }

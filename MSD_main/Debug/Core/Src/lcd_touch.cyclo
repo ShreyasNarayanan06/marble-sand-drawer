@@ -9,4 +9,4 @@
 ../Core/Src/lcd_touch.c:184:6:LCD_DrawingInit	41
 ../Core/Src/lcd_touch.c:265:10:Touch_Read	2
 ../Core/Src/lcd_touch.c:280:6:LCD_IRPointerCircle	9
-../Core/Src/lcd_touch.c:338:6:Touch_EXTI_Callback	27
+../Core/Src/lcd_touch.c:339:9:Touch_GetXY	14

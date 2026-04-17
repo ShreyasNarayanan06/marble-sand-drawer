@@ -9,4 +9,4 @@
 ../Core/Src/lcd_touch.c:184:6:LCD_DrawingInit	168	static
 ../Core/Src/lcd_touch.c:265:10:Touch_Read	40	static,ignoring_inline_asm
 ../Core/Src/lcd_touch.c:280:6:LCD_IRPointerCircle	88	dynamic
-../Core/Src/lcd_touch.c:338:6:Touch_EXTI_Callback	48	static
+../Core/Src/lcd_touch.c:339:9:Touch_GetXY	32	static

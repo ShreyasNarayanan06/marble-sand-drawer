@@ -13,6 +13,8 @@ void LCD_BlackScreen(void);
 void LCD_DrawingInit(void);
 void LCD_DrawingPointerCircle(int x, int y, int r);
 void LCD_DrawPen(int x, int y, uint16_t color);
+uint8_t Touch_GetXY(int *px, int *py);
 void LCD_IRPointerCircle(int x, int y, int r);
 void Touch_EXTI_Callback(uint16_t GPIO_Pin);
+uint16_t Touch_Read(uint8_t cmd);
 #endif

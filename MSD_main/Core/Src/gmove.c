@@ -3,6 +3,10 @@
 #include "gpio.h"
 #include "path_data.h"
 
+extern volatile int user_lcd_path[MAX_LCD_POINTS][2];
+extern volatile int user_path_length;
+extern volatile int sendingflag;
+
 volatile int32_t current_x_steps = 0;
 volatile int32_t current_y_steps = 0;
 
@@ -41,37 +45,10 @@ volatile int32_t debugYCB = 0;
 volatile double MAX_ARR = 8000;
 
 
-void GMove_EXTI_Callback(uint16_t GPIO_Pin) {
+//void GMove_EXTI_Callback(uint16_t GPIO_Pin) {
     // X-Axis Limit Switch Hit
-    if (GPIO_Pin == GPIO_PIN_10) {
-    	if (x_homing == 1) {
-    		HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_1); // Kill X motor
-    		x_is_homed = 1; // Tell the system X is done
-    	}
-    }
 
-    // Y-Axis Limit Switch Hit
-    if (GPIO_Pin == GPIO_PIN_14) {
-    	if (y_homing == 1) {
-    		HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1); // Kill Y motor
-    		y_is_homed = 1;// Tell the system Y is done
-    	}
-    }
-
-    if (GPIO_Pin == GPIO_PIN_2) {
-    	static uint32_t lpt = 0;
-    	uint32_t tcurr = HAL_GetTick();
-
-    	if(tcurr - lpt > 200) {
-    		manual_mode = !manual_mode;
-
-			HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_1);
-			HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
-
-    		lpt = tcurr;
-    	}
-    }
-}
+//}
 
 
 void Gantry_Home(void) {
@@ -262,11 +239,15 @@ void lineMove(double target_x_mm, double target_y_mm, double speed) {
      }
 
      while(targetX >= 0 || targetY >= 0){
+    	 if ((current_state == STATE_LCD_MODE) && (sendingflag == 1)) {
+    	     		 return;
+		 }
     	 if(manual_mode == 1) {
     		 targetX = -1;
     		 targetY = -1;
     		 break;
     	 }
+
      }
   }
 
@@ -298,13 +279,31 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
     }
 }
 
-void procCSV(void) {
-	for(int i = 0; i < NUM_PATH_POINTS; i++) {
-		if(manual_mode == 1) break;
-		double target_x = path_data[i][0];
-		double target_y = path_data[i][1];
+void procCSV(const double path[][2], int length)
+{
+    for (int i = 0; i < length; i++) {
+        if (manual_mode == 1) break;
 
-		lineMove(percentDist(target_x), percentDist(target_y), 100);
+        double target_x = path[i][0];
+        double target_y = path[i][1];
+
+        lineMove(percentDist(target_x), percentDist(target_y), 100);
+    }
+}
+
+void procUserDrawing() {
+	double tx;
+	double ty;
+	lineMove(percentDist(100 - user_lcd_path[0][0]), percentDist(user_lcd_path[0][1]), 100);
+	//CLEAR HERE
+
+	for(int i = 1; i < user_path_length; i++) {
+		if(manual_mode == 1) break;
+
+		tx = 100 - user_lcd_path[i][0];
+		ty = user_lcd_path[i][1];
+
+		lineMove(percentDist(tx), percentDist(ty), 100);
 	}
 }
 

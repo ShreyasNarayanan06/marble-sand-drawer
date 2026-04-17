@@ -67,6 +67,17 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 
+typedef enum {
+    STATE_BOOT_HOMING,      // 0: System booting, homing the gantry
+    STATE_AUTO_DRAW,        // 1: Drawing default CSV patterns
+    STATE_JOYSTICK_MODE,    // 2: Manual control via physical joystick
+    STATE_LCD_MODE,         // 3: User is drawing on the touchscreen
+	 STATE_LCD_INTER,
+    STATE_IR_MODE,          // 4: User is drawing with Wii remote
+    STATE_CLEARING          // 5: Mechanical wiping routine
+} SystemState;
+
+
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
@@ -98,6 +109,12 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN Private defines */
 extern volatile uint8_t manual_mode;
+extern volatile SystemState current_state;
+#define MAX_LCD_POINTS 300 // How many points the user can draw
+extern volatile int user_lcd_path[MAX_LCD_POINTS][2];
+extern volatile int user_path_length;
+extern volatile int sendingflag;
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

@@ -1,8 +1,11 @@
 #ifndef PATH_DATA_H
 #define PATH_DATA_H
 
-// Automatically generated from blockM.csv
-extern const int NUM_PATH_POINTS;
-extern const double path_data[16][2];
+#define MAX_POINTS 50
+#define NUM_DESIGNS 5
+#define COORDS 2
 
-#endif // PATH_DATA_H
+extern const int path_lengths[];
+extern const double paths[][MAX_POINTS][COORDS];
+
+#endif

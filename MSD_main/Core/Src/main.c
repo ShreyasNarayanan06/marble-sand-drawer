@@ -365,8 +365,63 @@ int main(void)
 
     	          //==========================================
     	          case STATE_IR_MODE:
-    	              // Wii remote logic goes here later
-    	              break;
+    	        	  if (uart_flag) {
+    	        	          uart_flag = 0;
+
+    	        	          uint16_t raw_x = ((uint16_t)rx_buffer[1] << 8) | rx_buffer[2];
+    	        	          uint16_t raw_y = ((uint16_t)rx_buffer[3] << 8) | rx_buffer[4];
+
+    	        	          if (raw_x <= 1023 && raw_y <= 1023) {
+    	        	              int gantryx = percentIR(raw_x);
+    	        	              int gantryy = percentIR(raw_y);
+
+    	        	              // Convert to LCD space
+    	        	              int pixel_x = 319 - (gantryx * 320 / 100);
+    	        	              int pixel_y = (gantryy * 320 / 100) + 120;
+
+    	        	              // Clamp bounds
+    	        	              if (pixel_x < 0) pixel_x = 0; if (pixel_x > 319) pixel_x = 319;
+    	        	              if (pixel_y < 120) pixel_y = 120; if (pixel_y > 479) pixel_y = 479;
+
+    	        	              // --- 1. Clear Button ---
+    	        	              if (pixel_x >= 160 && pixel_y >= 40 && pixel_y < 100) {
+    	        	                  LCD_ClearScreen();
+    	        	                  LCD_DrawingInit();
+    	        	                  user_path_length = 0;
+    	        	                  printf("CLEAR_LOG\n\r");
+    	        	                  lpx = -1; lpy = -1;
+    	        	              }
+    	        	              // --- 2. Save Button ---
+    	        	              else if (pixel_x < 160 && pixel_y >= 40 && pixel_y < 100) {
+    	        	                  sendingflag = 1;
+    	        	                  play_user_path = 1; // Mark user path active
+    	        	                  printf("SAVE_FILE\n\r");
+    	        	                  for (int i = 0; i < user_path_length; i++) {
+    	        	                      printf("x: %d, y: %d\n\r", 100 - user_lcd_path[i][0], user_lcd_path[i][1]);
+    	        	                  }
+    	        	                  current_state = STATE_LCD_MODE; // Transition to play
+    	        	              }
+    	        	              // --- 3. Draw & Record Point ---
+    	        	              else {
+    	        	                  if (rx_buffer[0] == 0xAA) LCD_IRPointerCircle(pixel_x, pixel_y, 3);
+    	        	                  else LCD_DrawingPointerCircle(pixel_x, pixel_y, 3);
+
+    	        	                  // Filter noise before saving
+    	        	                  static int last_gx = -1, last_gy = -1;
+    	        	                  if (abs(gantryx - last_gx) > 2 || abs(gantryy - last_gy) > 2) {
+    	        	                      if (gantryx >= 0 && gantryx <= 100 && gantryy >= 0 && gantryy <= 100 && user_path_length < MAX_LCD_POINTS) {
+    	        	                          user_lcd_path[user_path_length][0] = gantryx;
+    	        	                          user_lcd_path[user_path_length][1] = gantryy;
+    	        	                          user_path_length++;
+    	        	                          last_gx = gantryx;
+    	        	                          last_gy = gantryy;
+    	        	                          printf("%d,%d\n\r", gantryx, gantryy);
+    	        	                      }
+    	        	                  }
+    	        	              }
+    	        	          }
+    	        	      }
+    	        	      break;
 
     	          // ==========================================
     	          case STATE_CLEARING:
@@ -487,6 +542,23 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
                     int pixel_x = ((int)raw_x - 200) * 320 / (1811 - 200);
                     int pixel_y = 479 - (((int)raw_y - 200) * 480 / (1920 - 200));
+
+                    if (pixel_y < 40) {
+
+                    	 if (current_state == STATE_IR_MODE) {
+                            printf("Switching back to Touch mode!\n\r");
+                            current_state = STATE_LCD_MODE; // Or whatever your idle state is
+                        } else {
+                            printf("Switching to IR mode!\n\r");
+                            current_state = STATE_IR_MODE;
+                        }
+//                        } else {
+//                        	current_state = STATE_IR_MODE;
+//                        }
+//                        return;
+                    }
+
+                    if (current_state == STATE_IR_MODE) return;
 
                     if (pixel_x < 0) pixel_x = 0;
                     if (pixel_x > 319) pixel_x = 319;

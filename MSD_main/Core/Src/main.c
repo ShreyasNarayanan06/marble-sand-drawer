@@ -48,7 +48,6 @@
 volatile uint8_t trigger_lcd_touch = 0;
 volatile uint8_t trigger_ir_active = 0;
 volatile uint8_t trigger_joystick = 0;
-volatile uint8_t trigger_clear_btn = 0;
 
 extern const int path_lengths[];
 extern const double paths[][MAX_POINTS][COORDS];
@@ -156,8 +155,8 @@ int main(void)
     Gantry_Home();
     printf("Homed!\r\n");
 
-    uint32_t last_print = 0;
-    int point_index = 0;
+//    uint32_t last_print = 0;
+//    int point_index = 0;
 
     uint32_t last_joy = 0;
   /* USER CODE END 2 */
@@ -232,8 +231,7 @@ int main(void)
     	              // in case you ever want to call a re-home during runtime.
     	              current_state = STATE_AUTO_DRAW;
     	              break;
-
-    	          // ==========================================
+    	                  	          // ==========================================
     	              // ==========================================
     	                        case STATE_AUTO_DRAW:
     	                            switch(auto_draw_step) {
@@ -260,7 +258,7 @@ int main(void)
     	                                        lineMove(percentDist(target_x), percentDist(target_y), 100);
 
     	                                        // Quick safety break if user pressed the manual mode button OR touched the screen mid-draw
-    	                                        if (manual_mode || current_state == STATE_LCD_MODE || current_state == STATE_LCD_INTER) break;
+    	                                        if (manual_mode || current_state == STATE_LCD_MODE || current_state == STATE_IR_MODE || current_state == STATE_LCD_INTER) break;
     	                                    }
 
     	                                    // Transition to Wait Step
@@ -299,7 +297,7 @@ int main(void)
     	                                    printf("Mechanical Clear sequence triggered...\r\n");
 
     	                                    // CALL EXTERNAL CLEARING FUNCTION HERE LATER
-    	                                    // Mechanical_Clear_Sequence();
+    	                                    Mechanical_Clear_Sequence();
 
     	                                    // Loop back to Step 0 to draw the new design
     	                                    auto_draw_step = 0;
@@ -361,81 +359,119 @@ int main(void)
     	                        	sendingflag = 0;
     	                        	procUserDrawing();
     	                        	HAL_Delay(5000);
+     	    		    		    current_state = STATE_AUTO_DRAW;
+     	    		    		    Gantry_Home();
     	                            break;
 
     	          //==========================================
     	          case STATE_IR_MODE:
-    	        	  if (uart_flag) {
-    	        	          uart_flag = 0;
+    	              // Wii remote logic goes here later
+    	    		  	  uint8_t start = 0;
+    	    		      HAL_StatusTypeDef status;
 
-    	        	          uint16_t raw_x = ((uint16_t)rx_buffer[1] << 8) | rx_buffer[2];
-    	        	          uint16_t raw_y = ((uint16_t)rx_buffer[3] << 8) | rx_buffer[4];
+    	    		       status = HAL_UART_Receive(&huart1, &start, 1, 1000);
+    	    		       if (status != HAL_OK)
+    	    		       {
+    	    		           printf("Timeout or RX fail waiting for start\r\n");
+    	    		           continue;
+    	    		       }
 
-    	        	          if (raw_x <= 1023 && raw_y <= 1023) {
-    	        	              int gantryx = percentIR(raw_x);
-    	        	              int gantryy = percentIR(raw_y);
 
-    	        	              // Convert to LCD space
-    	        	              int pixel_x = 319 - (gantryx * 320 / 100);
-    	        	              int pixel_y = (gantryy * 320 / 100) + 120;
+    	    		       if (start != 0xAA && start != 0xAB)
+						   {
+							   continue;
+						   }
 
-    	        	              // Clamp bounds
-    	        	              if (pixel_x < 0) pixel_x = 0; if (pixel_x > 319) pixel_x = 319;
-    	        	              if (pixel_y < 120) pixel_y = 120; if (pixel_y > 479) pixel_y = 479;
+    	    		       uint8_t raw[4] = {0};
+    	    		       status = HAL_UART_Receive(&huart1, raw, 4, 1);
+    	    		       if (status != HAL_OK)
+    	    		       {
+    	    		           printf("Payload RX fail\r\n");
+    	    		           continue;
+    	    		       }
 
-    	        	              // --- 1. Clear Button ---
-    	        	              if (pixel_x >= 160 && pixel_y >= 40 && pixel_y < 100) {
-    	        	                  LCD_ClearScreen();
-    	        	                  LCD_DrawingInit();
-    	        	                  user_path_length = 0;
-    	        	                  printf("CLEAR_LOG\n\r");
-    	        	                  lpx = -1; lpy = -1;
-    	        	              }
-    	        	              // --- 2. Save Button ---
-    	        	              else if (pixel_x < 160 && pixel_y >= 40 && pixel_y < 100) {
-    	        	                  sendingflag = 1;
-    	        	                  play_user_path = 1; // Mark user path active
-    	        	                  printf("SAVE_FILE\n\r");
-    	        	                  for (int i = 0; i < user_path_length; i++) {
-    	        	                      printf("x: %d, y: %d\n\r", 100 - user_lcd_path[i][0], user_lcd_path[i][1]);
-    	        	                  }
-    	        	                  current_state = STATE_LCD_MODE; // Transition to play
-    	        	              }
-    	        	              // --- 3. Draw & Record Point ---
-    	        	              else {
-    	        	                  if (rx_buffer[0] == 0xAA) LCD_IRPointerCircle(pixel_x, pixel_y, 3);
-    	        	                  else LCD_DrawingPointerCircle(pixel_x, pixel_y, 3);
+    	    		       uint16_t x = ((uint16_t)raw[0] << 8) | raw[1];
+    	    		       uint16_t y = ((uint16_t)raw[2] << 8) | raw[3];
 
-    	        	                  // Filter noise before saving
-    	        	                  static int last_gx = -1, last_gy = -1;
-    	        	                  if (abs(gantryx - last_gx) > 2 || abs(gantryy - last_gy) > 2) {
-    	        	                      if (gantryx >= 0 && gantryx <= 100 && gantryy >= 0 && gantryy <= 100 && user_path_length < MAX_LCD_POINTS) {
-    	        	                          user_lcd_path[user_path_length][0] = gantryx;
-    	        	                          user_lcd_path[user_path_length][1] = gantryy;
-    	        	                          user_path_length++;
-    	        	                          last_gx = gantryx;
-    	        	                          last_gy = gantryy;
-    	        	                          printf("%d,%d\n\r", gantryx, gantryy);
-    	        	                      }
-    	        	                  }
-    	        	              }
-    	        	          }
-    	        	      }
-    	        	      break;
+    	    		       printf("raw = %02X %02X %02X %02X | x = %u, y = %u\r\n",
+    	    		              raw[0], raw[1], raw[2], raw[3], x, y);
+
+    	    		       if (start == 0xAA) {// cursor mode
+    	    		       LCD_IRPointerCircle(x, y, 3);
+    	    		       }
+
+    	    		       else {// draw mode
+    	    		    	   if ((x > 0 && x < 160) && (y < 120 && y > 40)) {
+    	    		    		   for (int i = 0; i < user_path_length; i++) {
+									    printf("x: %d, y: %d\n\r", 100 - user_lcd_path[i][0], user_lcd_path[i][1]);
+								   }
+    	    		    		   //submit
+    	    		    		   //skip first element
+
+    	    		    		   Gantry_Home();
+    	    		    		   sendingflag = 0;
+    	    		    		   procUserDrawing();
+   	                        	   HAL_Delay(5000);
+
+    	    		    		   //go back to main
+   	                        	   current_state = STATE_AUTO_DRAW;
+    	    		    		   Gantry_Home();
+
+    	    		    		   break;
+    	    		    	   }
+    	    		    	   else if ((x > 160 && x < 320) && (y < 120 && y > 40)) {
+    	    		    		   //clear
+    	    		    		   clearArray();
+    	    		    		   LCD_ClearScreen();
+								   LCD_DrawingInit();
+    	    		    	   }
+
+    	    		    	   //processing to gantry coordinates
+    	    		    	   float newx = 100 - ((x/320.0) * 100);
+    	    		    	   float newy = ((y - 120)/320.0 * 100);
+    	    		    	   if (!((newx <= 0 || newy <=0) || (newx > 100) || (newy > 100))) {
+    	    		    		   user_lcd_path[user_path_length][0] = (int)newx;
+								   user_lcd_path[user_path_length][1] = (int)newy;
+								   user_path_length++;
+    	    		    	   }
+
+
+
+    	    		    	   LCD_DrawingPointerCircle(x, y, 3);
+    	    		       }
+
+
+    	              break;
 
     	          // ==========================================
-    	          case STATE_CLEARING:
-    	              // Dedicated clearing state for manual triggers
-    	              break;
-          /* USER CODE END WHILE */
-    	}
-      }
+//    	          case STATE_CLEARING:
+//    	        	  printf("we are clearing jlbc\n");
+//    	        	  sendingflag = 0;
+//    	        	  static uint32_t clear_start_time = 0;
+//
+//    	        	      if (trigger_clear_btn == 1) {
+//    	        	          // Turn ON PD1
+//    	        	          HAL_GPIO_WritePin(GPIOD, GPIO_PIN_1, GPIO_PIN_SET);
+//    	        	          clear_start_time = HAL_GetTick();
+//    	        	          trigger_clear_btn = 2; // Move to the "waiting" phase
+//    	        	      }
+//
+//    	        	      // Check if 5 seconds (5000ms) have passed
+//    	        	      if (trigger_clear_btn == 2 && (HAL_GetTick() - clear_start_time >= 5000)) {
+//    	        	          // Turn OFF PD1
+//    	        	          HAL_GPIO_WritePin(GPIOD, GPIO_PIN_1, GPIO_PIN_RESET);
+//    	        	          trigger_clear_btn = 0; // Reset the flag completely
+//    	        	      }
+//    	        	  break;
+    /* USER CODE END WHILE */
+
     /* USER CODE BEGIN 3 */
 
 
     }
   /* USER CODE END 3 */
-
+}
+}
 
 /**
   * @brief System Clock Configuration
@@ -503,117 +539,147 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
         }
     }
 
-    if (GPIO_Pin == GPIO_PIN_6) {
-    	//current_state = STATE_LCD_INTER;
-        if (current_state != STATE_LCD_MODE) {
-            printf("Screen touched! Switching to LCD Mode...\r\n");
-            joyMove(0, 0); // Hard stop the motors
+	if (GPIO_Pin == GPIO_PIN_6) {
 
-            // printf("IRQ Fired!\r\n");
+	        // 1. HARDWARE SANITY CHECK
+	        if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_6) == GPIO_PIN_SET) return;
 
-                    if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_6) == GPIO_PIN_SET) return;
+	        // 2. STOP THE MOTORS IF WE WERE AUTO-DRAWING
+	        if (current_state == STATE_AUTO_DRAW) {
+	            joyMove(0, 0);
+	            // Gantry_AbortMove(); // (If you added this function earlier, uncomment it!)
+	            current_state = STATE_LCD_MODE;
+	            printf("Screen touched! Switching to LCD Mode...\r\n");
+	        }
 
-                    uint16_t z1 = Touch_Read(0xB0);
+	        // 3. READ TOUCH PRESSURE (Raised to 100 to kill weak ghost touches)
+	        uint16_t z1 = Touch_Read(0xB0);
+	        if (z1 < 100 || z1 > 4000) return;
 
-                    if (z1 < 50 || z1 > 4000) return;
+	        Touch_Read(0xD0);
+	        Touch_Read(0x90);
 
-                    Touch_Read(0xD0);
-                    Touch_Read(0x90);
+	        uint32_t sum_x = 0;
+	        uint32_t sum_y = 0;
+	        for (int i = 0; i < 10; i++) {
+	            sum_x += Touch_Read(0xD0);
+	            sum_y += Touch_Read(0x90);
+	        }
 
-                    uint32_t sum_x = 0;
-                    uint32_t sum_y = 0;
+	        uint16_t raw_x = sum_x / 10;
+	        uint16_t raw_y = sum_y / 10;
 
-                    for (int i = 0; i < 10; i++) {
-                        sum_x += Touch_Read(0xD0);
-                        sum_y += Touch_Read(0x90);
-                    }
+	        if (raw_x < 50 || raw_x > 4000 || raw_y < 50 || raw_y > 4000) return;
 
-                    uint16_t raw_x = sum_x / 10;
-                    uint16_t raw_y = sum_y / 10;
+	        // 4. MAP TO PIXELS
+	        if (raw_x < 200) raw_x = 200;
+	        if (raw_x > 1811) raw_x = 1811;
+	        if (raw_y < 200) raw_y = 200;
+	        if (raw_y > 1920) raw_y = 1920;
 
-                    //printf("Raw: %d, %d\r\n", raw_x, raw_y);
+	        int pixel_x = ((int)raw_x - 200) * 320 / (1811 - 200);
+	        int pixel_y = 479 - (((int)raw_y - 200) * 480 / (1920 - 200));
 
-                    if (raw_x < 50 || raw_x > 4000 || raw_y < 50 || raw_y > 4000) return;
+	        // Clamp bounds securely
+	        if (pixel_x < 0) pixel_x = 0;
+	        if (pixel_x > 319) pixel_x = 319;
+	        if (pixel_y < 0) pixel_y = 0;
+	        if (pixel_y > 479) pixel_y = 479;
 
-                    if (raw_x < 200) raw_x = 200;
-                    if (raw_x > 1811) raw_x = 1811;
-                    if (raw_y < 200) raw_y = 200;
-                    if (raw_y > 1920) raw_y = 1920;
+	        // ==========================================================
+	        // UI ELEMENT 1: MODE SWITCH BUTTON (Active in ALL states)
+	        // ==========================================================
+	        if (pixel_y < 40) {
+	            static uint32_t last_mode_switch = 0;
 
-                    int pixel_x = ((int)raw_x - 200) * 320 / (1811 - 200);
-                    int pixel_y = 479 - (((int)raw_y - 200) * 480 / (1920 - 200));
+	            if (HAL_GetTick() - last_mode_switch > 500) {
+	                if (current_state == STATE_IR_MODE) {
+	                    printf("Switching back to Touch mode!\n\r");
+	                    current_state = STATE_LCD_MODE;
+	                } else {
+	                    printf("Switching to IR mode!\n\r");
+	                    clearArray();
+	                    current_state = STATE_IR_MODE;
+	                    sendingflag = 1;
+	                }
+	                LCD_ClearScreen();
+	                LCD_DrawingInit();
+	                lpx = -1; lpy = -1; // Reset line drawing
+	                last_mode_switch = HAL_GetTick();
+	            }
+	            return; // ALWAYS return after hitting a UI button
+	        }
 
-                    if (pixel_y < 40) {
+	        // ==========================================================
+	        // GATED AREA: Only Touch Mode allowed past this point!
+	        // ==========================================================
+	        if (current_state == STATE_IR_MODE) {
+	            return;
+	        }
 
-                    	 if (current_state == STATE_IR_MODE) {
-                            printf("Switching back to Touch mode!\n\r");
-                            current_state = STATE_LCD_MODE; // Or whatever your idle state is
-                        } else {
-                            printf("Switching to IR mode!\n\r");
-                            current_state = STATE_IR_MODE;
-                        }
-//                        } else {
-//                        	current_state = STATE_IR_MODE;
-//                        }
-//                        return;
-                    }
+	        // ==========================================================
+	        // UI ELEMENT 2: CLEAR AND SAVE BUTTONS
+	        // ==========================================================
+	        if (pixel_y >= 40 && pixel_y < 100) {
+	            static uint32_t last_ui_press = 0;
 
-                    if (current_state == STATE_IR_MODE) return;
+	            // Debounce the Clear and Save buttons by 500ms
+	            if (HAL_GetTick() - last_ui_press > 500) {
 
-                    if (pixel_x < 0) pixel_x = 0;
-                    if (pixel_x > 319) pixel_x = 319;
-                    if (pixel_y < 0) pixel_y = 0;
-                    if (pixel_y > 479) pixel_y = 479;
+	                if (pixel_x >= 160) {
+	                    // --- CLEAR BUTTON ---
+	                    LCD_ClearScreen();
+	                    LCD_DrawingInit();
+	                    printf("CLEAR_LOG\n\r");
+	                    user_path_length = 0; // ACTUALLY clear the memory!
+	                    lpx = -1;
+	                    lpy = -1;
+	                } else {
+	                    // --- SAVE BUTTON ---
+	                    sendingflag = 1;
+	                    printf("SAVE_FILE\n\r");
+	                    for (int i = 0; i < user_path_length; i++) {
+	                        printf("x: %d, y: %d\n\r", 100 - user_lcd_path[i][0], user_lcd_path[i][1]);
+	                    }
+	                    current_state = STATE_LCD_MODE;
+	                }
+	                last_ui_press = HAL_GetTick();
+	            }
+	            return; // ALWAYS return after hitting a UI button
+	        }
 
-                    if (pixel_x >= 160 && pixel_y >= 40 && pixel_y < 100) {
-                        LCD_ClearScreen();
-                        LCD_DrawingInit();
-                        printf("CLEAR_LOG\n\r");
-                        lpx = -1;
-                        lpy = -1;
-                        return;
-                    }
+	        // ==========================================================
+	        // DRAWING LOGIC (Only runs if below buttons and in Touch Mode)
+	        // ==========================================================
+	        if (lpx == -1) {
+	            lpx = pixel_x;
+	            lpy = pixel_y;
+	        } else {
+	            // Drop crazy outlier coordinates from electrical noise
+	            if (abs(pixel_x - lpx) > 30 || abs(pixel_y - lpy) > 30) return;
+	            lpx = pixel_x;
+	            lpy = pixel_y;
+	        }
 
-                    if (pixel_x < 160 && pixel_y >= 40 && pixel_y < 100) {
-                    	sendingflag = 1;
-                        printf("SAVE_FILE\n\r");
-                        for (int i = 0; i < user_path_length; i++) {
-                        	printf("x: %d, y: %d\n\r", 100 - user_lcd_path[i][0], user_lcd_path[i][1]);
-                        }
-                    	current_state = STATE_LCD_MODE;
-                        return;
-                    }
+	        LCD_DrawingPointerCircle(pixel_x, pixel_y, 3);
 
-                    if (lpx == -1) {
-                        lpx = pixel_x;
-                        lpy = pixel_y;
-                    } else {
-                        if (abs(pixel_x - lpx) > 3000 || abs(pixel_y - lpy) > 3000) return;
-                        lpx = pixel_x;
-                        lpy = pixel_y;
-                    }
+	        // Gantry conversions
+	        int adjx = 319 - pixel_x;
+	        int adjy = pixel_y;
 
-                    LCD_DrawingPointerCircle(pixel_x, pixel_y, 3);
-                    //gantry conversions
-                    int adjx = 319 - pixel_x;
-                    int adjy = pixel_y;
+	        int gantryx = (adjx / 320.0) * 100;
+	        int gantryy = ((adjy - 120.0) / 320.0) * 100;
 
-                    int gantryx = (adjx/320.0)*100;
-                    int gantryy = ((adjy-120.0)/320.0)*100;
+	        if (gantryx > 100 || gantryy > 100 || gantryx < 0 || gantryy < 0) return;
 
-                    if (gantryx > 100) return;
-                    if (gantryy > 100) return;
-                    if (gantryx < 0) return;
-                    if (gantryy < 0) return;
-                    user_lcd_path[user_path_length][0] = gantryx;
-                    user_lcd_path[user_path_length][1] = gantryy;
-
-
-                    user_path_length++;
-
-                    printf("%d,%d\n\r", gantryx, gantryy);
-        }
-    }
+	        // Protect array bounds
+	        if (user_path_length < MAX_LCD_POINTS) {
+	            user_lcd_path[user_path_length][0] = gantryx;
+	            user_lcd_path[user_path_length][1] = gantryy;
+	            user_path_length++;
+	            printf("%d,%d\n\r", gantryx, gantryy);
+	        }
+	    }
     //x axis limit switch hit
     if (GPIO_Pin == GPIO_PIN_10) {
     	if (x_homing == 1) {
@@ -643,6 +709,25 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     		lpt = tcurr;
     	}
     }
+
+//    if (GPIO_Pin == GPIO_PIN_9) {
+//            static uint32_t last_clear_press = 0;
+//
+//            // 200ms debounce to prevent ghost presses
+//            if (HAL_GetTick() - last_clear_press > 200) {
+//
+//                // Set your trigger flag (Make sure to define this variable at the top of main.c!)
+//                trigger_clear_btn = 1;
+//
+//                // Optional: If you want this button to also interrupt whatever the gantry is doing:
+//                 HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_1);
+//                 HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
+//                 current_state = STATE_CLEARING;
+//                 sendingflag = 1;
+//
+//                last_clear_press = HAL_GetTick();
+//            }
+//        }
 }
 
 //void Touch_EXTI_Callback(uint16_t GPIO_Pin) {

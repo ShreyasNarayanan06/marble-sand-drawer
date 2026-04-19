@@ -82,7 +82,7 @@ void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOB, Y_axis_Direction_Pin|DC_RS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, X_axis_Enable_Pin|X_axis_Direction_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, X_axis_Enable_Pin|X_axis_Direction_Pin|GPIO_PIN_1, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(TCH_CS_GPIO_Port, TCH_CS_Pin, GPIO_PIN_SET);
@@ -115,6 +115,12 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   GPIO_InitStruct.Alternate = GPIO_AF13_SAI1;
+  HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PF9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PC0 */
@@ -179,8 +185,8 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF7_USART3;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : X_axis_Enable_Pin X_axis_Direction_Pin TCH_CS_Pin */
-  GPIO_InitStruct.Pin = X_axis_Enable_Pin|X_axis_Direction_Pin|TCH_CS_Pin;
+  /*Configure GPIO pins : X_axis_Enable_Pin X_axis_Direction_Pin PD1 TCH_CS_Pin */
+  GPIO_InitStruct.Pin = X_axis_Enable_Pin|X_axis_Direction_Pin|GPIO_PIN_1|TCH_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

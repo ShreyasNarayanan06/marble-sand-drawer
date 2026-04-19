@@ -6,6 +6,8 @@
 extern volatile int user_lcd_path[MAX_LCD_POINTS][2];
 extern volatile int user_path_length;
 extern volatile int sendingflag;
+volatile uint8_t trigger_clear_btn = 0;
+
 
 volatile int32_t current_x_steps = 0;
 volatile int32_t current_y_steps = 0;
@@ -239,7 +241,7 @@ void lineMove(double target_x_mm, double target_y_mm, double speed) {
      }
 
      while(targetX >= 0 || targetY >= 0){
-    	 if ((current_state == STATE_LCD_MODE) && (sendingflag == 1)) {
+    	 if ((current_state == STATE_LCD_MODE || current_state == STATE_IR_MODE || current_state == STATE_CLEARING) && (sendingflag == 1)) {
     	     		 return;
 		 }
     	 if(manual_mode == 1) {
@@ -291,6 +293,15 @@ void procCSV(const double path[][2], int length)
     }
 }
 
+void clearArray() {
+	for(int i = 0; i < user_path_length; i++) {
+		user_lcd_path[i][0] = 0;
+		user_lcd_path[i][1] = 0;
+	}
+
+	user_path_length = 0;
+}
+
 void procUserDrawing() {
 	double tx;
 	double ty;
@@ -307,4 +318,17 @@ void procUserDrawing() {
 	}
 }
 
+void Mechanical_Clear_Sequence() {
+
+	  printf("we are clearing jlbc\n");
+	          // Turn ON PD1
+	          HAL_GPIO_WritePin(GPIOD, GPIO_PIN_1, GPIO_PIN_SET);
+
+	          // Block everything and wait 5 seconds
+	          HAL_Delay(3000);
+
+	          // Turn OFF PD1
+	          HAL_GPIO_WritePin(GPIOD, GPIO_PIN_1, GPIO_PIN_RESET);
+	          HAL_Delay(3000); //delay for motor to settle down
+}
 
